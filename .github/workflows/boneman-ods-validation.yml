@@ -1,0 +1,48 @@
+name: Boneman ODS Validation
+
+on:
+  push:
+    branches: [boneman/macos-omlx]
+  pull_request:
+    branches: [boneman/macos-omlx]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install validation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          python -m pip install \
+            -r dream-server/extensions/services/dashboard-api/requirements.txt \
+            -r dream-server/extensions/services/dashboard-api/tests/requirements-test.txt
+
+      - name: Validate deployment files
+        run: |
+          shellcheck deploy/boneman/install.sh
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          for path in (
+              Path("deploy/boneman/litellm.yaml"),
+              Path("deploy/boneman/docker-compose.override.yml"),
+          ):
+              assert yaml.safe_load(path.read_text()), path
+          PY
+
+      - name: Run dashboard API regression tests
+        working-directory: dream-server/extensions/services/dashboard-api
+        run: pytest -q tests/test_helpers.py tests/test_routers.py
