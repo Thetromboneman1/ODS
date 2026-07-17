@@ -212,7 +212,13 @@ async def chat(request: ChatRequest, api_key: str = Depends(verify_api_key)):
     try:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
             _api_path = os.environ.get("LLM_API_BASE_PATH", "/v1")
-            async with session.post(f"{llm_url}{_api_path}/chat/completions", json=payload, headers={"Content-Type": "application/json"}) as resp:
+            headers = {"Content-Type": "application/json"}
+            llm_api_key = os.environ.get("LLM_API_KEY", "")
+            if llm_api_key:
+                headers["Authorization"] = f"Bearer {llm_api_key}"
+            async with session.post(
+                f"{llm_url}{_api_path}/chat/completions", json=payload, headers=headers
+            ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     response_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")

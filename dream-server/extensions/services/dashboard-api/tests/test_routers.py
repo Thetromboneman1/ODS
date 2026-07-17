@@ -725,6 +725,7 @@ def test_setup_test_no_script_fallback(test_client, monkeypatch):
 
 def test_chat_success(test_client, monkeypatch):
     """POST /api/chat with mocked LLM → 200, returns response."""
+    monkeypatch.setenv("LLM_API_KEY", "backend-test-key")
     resp_mock = AsyncMock()
     resp_mock.status = 200
     resp_mock.json = AsyncMock(return_value={
@@ -752,6 +753,10 @@ def test_chat_success(test_client, monkeypatch):
     data = resp.json()
     assert data["success"] is True
     assert data["response"] == "Hello from the LLM!"
+    assert session_mock.post.call_args.kwargs["headers"] == {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer backend-test-key",
+    }
 
 
 def test_chat_llm_error(test_client, monkeypatch):
@@ -878,4 +883,3 @@ def test_list_models_single_file_downloaded(test_client, monkeypatch):
 
     data = _models_get(test_client)
     assert data["models"][0]["status"] == "downloaded"
-

@@ -542,6 +542,7 @@ class TestGetLoadedModel:
             "llama-server": {"host": "localhost", "port": 8080, "health": "/health", "name": "llama-server"},
         }
         monkeypatch.setattr("helpers.SERVICES", fake_services)
+        monkeypatch.setattr("helpers.LLM_API_KEY", "backend-test-key")
 
         mock_response = MagicMock()
         mock_response.json = MagicMock(return_value={
@@ -560,6 +561,10 @@ class TestGetLoadedModel:
 
         result = await get_loaded_model()
         assert result == "loaded-model"
+        mock_client.get.assert_awaited_once_with(
+            "http://localhost:8080/v1/models",
+            headers={"Authorization": "Bearer backend-test-key"},
+        )
 
     @pytest.mark.asyncio
     async def test_returns_first_model_when_no_loaded(self, monkeypatch):

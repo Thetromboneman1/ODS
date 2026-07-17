@@ -382,6 +382,7 @@ AGENT_HOST = _resolve_agent_host()
 AGENT_PORT = int(os.environ.get("DREAM_AGENT_PORT", "7710"))
 AGENT_URL = f"http://{AGENT_HOST}:{AGENT_PORT}"
 DASHBOARD_API_KEY = os.environ.get("DASHBOARD_API_KEY", "")
+LLM_API_KEY = os.environ.get("LLM_API_KEY", "")
 # Prefer dedicated DREAM_AGENT_KEY; fall back to DASHBOARD_API_KEY for
 # existing installs that haven't generated a separate key yet.
 DREAM_AGENT_KEY = os.environ.get("DREAM_AGENT_KEY", "") or DASHBOARD_API_KEY

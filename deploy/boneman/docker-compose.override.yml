@@ -1,0 +1,49 @@
+name: ods-boneman
+
+services:
+  llama-server-ready:
+    environment:
+      OMLX_HEALTH_URL: http://host.docker.internal:18080/health
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo "Waiting for oMLX on host..."
+        while ! wget -qO- "$${OMLX_HEALTH_URL}" >/dev/null 2>&1; do
+          sleep 2
+        done
+        echo "oMLX is ready"
+        sleep infinity
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- $${OMLX_HEALTH_URL} >/dev/null || exit 1"]
+
+  open-webui:
+    environment:
+      OPENAI_API_BASE_URL: http://litellm:4000/v1
+      OPENAI_API_KEY: ${LITELLM_KEY}
+    depends_on:
+      llama-server-ready:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+
+  dashboard-api:
+    environment:
+      OLLAMA_URL: ${OMLX_HOST_URL:-http://host.docker.internal:18080}
+      OLLAMA_HOST: host.docker.internal
+      OLLAMA_PORT: "18080"
+      LLM_API_KEY: ${OMLX_API_KEY}
+      LLM_MODEL: ${LLM_MODEL:-mlx-community--gemma-4-31b-it-4bit}
+      LLM_BACKEND: omlx
+      LLM_API_BASE_PATH: /v1
+      DREAM_TALK_VISION_URL: ${OMLX_HOST_URL:-http://host.docker.internal:18080}/v1
+      DREAM_TALK_VISION_KEY: ${OMLX_API_KEY}
+      DREAM_TALK_VISION_MODEL: mlx-community--gemma-4-31b-it-4bit
+
+  litellm:
+    environment:
+      OMLX_API_KEY: ${OMLX_API_KEY}
+
+  token-spy:
+    environment:
+      OLLAMA_URL: http://litellm:4000

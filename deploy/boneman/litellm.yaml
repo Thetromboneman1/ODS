@@ -1,0 +1,40 @@
+model_list:
+  - model_name: default
+    litellm_params:
+      model: openai/mlx-community--gemma-4-31b-it-4bit
+      api_base: http://host.docker.internal:18080/v1
+      api_key: os.environ/OMLX_API_KEY
+
+  - model_name: reasoning
+    litellm_params:
+      model: openai/mlx-community--gemma-4-31b-it-4bit
+      api_base: http://host.docker.internal:18080/v1
+      api_key: os.environ/OMLX_API_KEY
+
+  - model_name: coding
+    litellm_params:
+      model: openai/mlx-community--gemma-4-26b-a4b-it-4bit
+      api_base: http://host.docker.internal:18080/v1
+      api_key: os.environ/OMLX_API_KEY
+
+  - model_name: fast
+    litellm_params:
+      model: openai/mlx-community--gemma-4-e4b-it-4bit
+      api_base: http://host.docker.internal:18080/v1
+      api_key: os.environ/OMLX_API_KEY
+
+  - model_name: utility
+    litellm_params:
+      model: openai/mlx-community--gemma-4-e2b-it-4bit
+      api_base: http://host.docker.internal:18080/v1
+      api_key: os.environ/OMLX_API_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true
+  request_timeout: 180
+  stream_timeout: 120
+  set_verbose: false
+

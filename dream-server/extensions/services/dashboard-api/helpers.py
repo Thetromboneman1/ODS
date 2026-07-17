@@ -15,7 +15,15 @@ from typing import Optional
 import aiohttp
 import httpx
 
-from config import SERVICES, INSTALL_DIR, DATA_DIR, LLM_BACKEND, AGENT_URL, DREAM_AGENT_KEY
+from config import (
+    SERVICES,
+    INSTALL_DIR,
+    DATA_DIR,
+    LLM_BACKEND,
+    LLM_API_KEY,
+    AGENT_URL,
+    DREAM_AGENT_KEY,
+)
 from models import ServiceStatus, DiskUsage, ModelInfo, BootstrapStatus
 
 
@@ -337,7 +345,10 @@ async def get_loaded_model() -> Optional[str]:
             return loaded if loaded else None
 
         # llama.cpp: /v1/models returns the loaded model with status info.
-        resp = await client.get(f"http://{host}:{port}{_LLM_API_PREFIX}/models")
+        headers = {"Authorization": f"Bearer {LLM_API_KEY}"} if LLM_API_KEY else {}
+        resp = await client.get(
+            f"http://{host}:{port}{_LLM_API_PREFIX}/models", headers=headers
+        )
         models = resp.json().get("data", [])
         for m in models:
             status = m.get("status", {})
