@@ -443,6 +443,20 @@ Other tools get you part of the way. Dream Server gets you the whole way.
 
 ---
 
+## Boneman Downstream Maintenance
+
+This fork's active downstream branch is `boneman/macos-omlx`. It preserves an
+additive, loopback-only oMLX deployment under `deploy/boneman/` and tracks
+audited stable ODS releases through review pull requests. See
+[upstream synchronization](docs/upstream-sync.md),
+[downstream customizations](docs/downstream-customizations.md), and
+[the deployment runbook](deploy/boneman/README.md).
+
+Maintenance status: active downstream customization. Authoritative upstream:
+`Osmantic/ODS`. Last audit: 2026-07-26.
+
+---
+
 ## Contributors And Recognition
 
 Dream Server is built by a growing group of contributors across installers, GPU support, dashboard, security, extensions, docs, and release validation. The README keeps the product overview focused; the long-form credits, upstream acknowledgements, and contributor history live in [CONTRIBUTORS.md](CONTRIBUTORS.md).

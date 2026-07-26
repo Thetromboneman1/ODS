@@ -1,0 +1,50 @@
+schema_version: 1
+last_audited: "2026-07-26"
+repository: Thetromboneman1/ODS
+upstream:
+  repository: Osmantic/ODS
+  branch: main
+  installed_release: v2.5.3
+  strategy: stable-release review merge
+downstream:
+  branch: boneman/macos-omlx
+  overlay_root: deploy/boneman
+  rebuild_script: scripts/rebuild-downstream.sh
+  validation_script: scripts/validate-downstream.sh
+preserved_paths:
+  - deploy/boneman/.env.template
+  - deploy/boneman/README.md
+  - deploy/boneman/docker-compose.override.yml
+  - deploy/boneman/docker-public-config/
+  - deploy/boneman/install.sh
+  - deploy/boneman/litellm.yaml
+preserved_contract:
+  production_engine: oMLX
+  host_endpoint: http://127.0.0.1:18080/v1
+  container_endpoint: http://host.docker.internal:18080/v1
+  bind_address: 127.0.0.1
+  ports:
+    webui: 3100
+    dashboard: 3101
+    dashboard_api: 3102
+    token_spy: 3105
+    litellm: 4100
+    searxng: 8889
+  model_roles:
+    reasoning: mlx-community--gemma-4-31b-it-4bit
+    coding: mlx-community--gemma-4-26b-a4b-it-4bit
+    fast: mlx-community--gemma-4-e4b-it-4bit
+    utility: mlx-community--gemma-4-e2b-it-4bit
+secret_references:
+  - OMLX_API_KEY
+  - WEBUI_SECRET
+  - DASHBOARD_API_KEY
+  - DREAM_AGENT_KEY
+  - DREAM_SESSION_SECRET
+  - SHIELD_API_KEY
+  - TOKEN_SPY_API_KEY
+  - SEARXNG_SECRET
+  - LITELLM_KEY
+production_promotion:
+  automatic: false
+  command: deploy/boneman/install.sh --apply

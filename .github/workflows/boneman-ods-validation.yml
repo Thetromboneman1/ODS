@@ -43,6 +43,9 @@ jobs:
               assert yaml.safe_load(path.read_text()), path
           PY
 
+      - name: Rebuild and validate downstream profile
+        run: scripts/rebuild-downstream.sh --validate
+
       - name: Run dashboard API regression tests
         working-directory: dream-server/extensions/services/dashboard-api
         run: pytest -q tests/test_helpers.py tests/test_routers.py
