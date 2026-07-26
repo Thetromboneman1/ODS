@@ -2,9 +2,10 @@ name: ShellCheck
 
 on:
   push:
-    branches: [main]
+    branches: [main, boneman/macos-omlx]
   pull_request:
-    branches: [main]
+    branches: [main, boneman/macos-omlx]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -39,7 +40,7 @@ jobs:
           #   -e SC1091  exclude "can't follow sourced files"
           #   -e SC2034  exclude "unused variables" (many are used by sourced files)
           #   -S warning treat warnings and above as reportable
-          # shellcheck returns:
+          # ShellCheck returns:
           #   0 = no issues
           #   1 = errors or warnings found
           # We fail the job only on error-severity issues by using -S error,
