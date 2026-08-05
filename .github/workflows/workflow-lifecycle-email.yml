@@ -3,9 +3,27 @@ name: Workflow lifecycle email
 on:
   workflow_run:
     workflows:
+      - AI Issue Triage
+      - Autonomous Code Scanner
       - Boneman ODS Validation
+      - Claude Code Review
+      - Dashboard
+      - Issue to PR
+      - Lint PowerShell
+      - Python Lint
       - ShellCheck
+      - Matrix Smoke
+      - Nightly Code Review
+      - Nightly Documentation Update
+      - openclaw filesystem write gate
+      - AI Release Notes
+      - Secret Scan
+      - Test Linux
+      - Python Type Check
       - Sync Stable Upstream Release
+      - Validate Extensions Catalog
+      - Validate Docker Compose
+      - Validate .env Schema
     types:
       - in_progress
       - completed
@@ -34,4 +52,3 @@ jobs:
           workload-summary: Observed lifecycle transition for the source workflow run.
           correlation-id: ${{ github.repository }}:${{ github.event.workflow_run.id }}:${{ github.event.workflow_run.run_attempt }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
