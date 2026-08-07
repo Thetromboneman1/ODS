@@ -476,3 +476,19 @@ Apache 2.0 — Use it, modify it, ship it. See [LICENSE](LICENSE).
 *Built by [Light Heart Labs](https://github.com/Light-Heart-Labs) and the growing resistance that refuses to rent what should be owned.*
 
 </div>
+
+<!-- documentation-health:start -->
+## Current repository state
+
+![ODS system architecture](docs/architecture/ods-system-architecture.png)
+
+- **Default branch:** `boneman/macos-omlx`
+- **Implementation fingerprint:** `70a130ab4f2d8000`
+- **Detected structure:** Automation modules, Deployment modules, GitHub Actions, Tests and validation, Maintained documentation.
+- **Documentation contract:** editable diagram sources, committed PNG renderings,
+  resolved local image links, and generated state are checked on every commit.
+- **Refresh command:** `python3 scripts/documentation_health.py --write`
+
+See [repository state](docs/REPOSITORY_STATE.md) and the
+[architecture asset guide](docs/architecture/README.md).
+<!-- documentation-health:end -->

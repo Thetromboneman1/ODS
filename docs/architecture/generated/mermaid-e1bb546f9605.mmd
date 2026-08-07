@@ -1,0 +1,30 @@
+graph TD
+    subgraph Libraries["installers/lib/ (pure functions)"]
+        C[constants] --> D[detection]
+        D --> T[tier-map]
+        T --> CS[compose-select]
+        P[packaging]
+        PY[python-runtime]
+        DI[docker-images]
+        PR[progress]
+        SR[service-registry]
+        U[ui]
+        L[logging]
+    end
+
+    subgraph Phases["installers/phases/ (sequential)"]
+        P01["01 Preflight"] --> P02["02 Detection"]
+        P02 --> P03["03 Features"]
+        P03 --> P04["04 Requirements"]
+        P04 --> P05["05 Docker"]
+        P05 --> P06["06 Directories"]
+        P06 --> P07["07 DevTools"]
+        P07 --> P08["08 Images"]
+        P08 --> P09["09 Offline"]
+        P09 --> P10["10 AMD Tuning"]
+        P10 --> P11["11 Services"]
+        P11 --> P12["12 Health"]
+        P12 --> P13["13 Summary"]
+    end
+
+    Libraries --> Phases

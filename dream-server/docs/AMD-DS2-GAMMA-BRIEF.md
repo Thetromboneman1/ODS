@@ -105,19 +105,8 @@ access.
 
 ## Slide 8: Architecture
 
-```mermaid
-flowchart LR
-    Card["Setup card QR codes"] --> Wizard["First-boot wizard"]
-    Wizard --> API["Dashboard API"]
-    API --> HostAgent["Host agent"]
-    HostAgent --> WiFi["Wi-Fi / NetworkManager"]
-    API --> Magic["Magic-link auth"]
-    Magic --> Session["Signed local session"]
-    Session --> Apps["Local agent and chat apps"]
-    Proxy["dream-proxy + mDNS"] --> Wizard
-    Proxy --> Apps
-    Proxy --> Dashboard["Power-user dashboard"]
-```
+![Rendered system diagram](../../docs/architecture/generated/mermaid-db170012ca89.png)
+
 
 ## Slide 9: Code Proof Points
 

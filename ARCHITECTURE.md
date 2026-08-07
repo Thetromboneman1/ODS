@@ -15,97 +15,8 @@ The architecture follows a **layered compose model**: a base compose file define
 
 ## System Architecture
 
-```mermaid
-graph TB
-    subgraph External["User Access (localhost only)"]
-        Browser["Browser"]
-    end
+![Rendered system diagram](docs/architecture/generated/mermaid-5a958fcd5f0a.png)
 
-    subgraph Core["Core Services"]
-        LLAMA["llama-server<br/>:8080<br/>LLM Inference"]
-        WEBUI["open-webui<br/>:3000<br/>Chat UI"]
-        DASH["dashboard<br/>:3001<br/>Control Center"]
-        DAPI["dashboard-api<br/>:3002<br/>System Status API"]
-    end
-
-    subgraph Gateway["API Gateway"]
-        LITE["litellm<br/>:4000<br/>OpenAI-compatible proxy"]
-    end
-
-    subgraph Voice["Voice Pipeline"]
-        WHISPER["whisper<br/>:9000<br/>Speech-to-Text"]
-        TTS["tts / Kokoro<br/>:8880<br/>Text-to-Speech"]
-    end
-
-    subgraph Search["Search & Research"]
-        SEARX["searxng<br/>:8888<br/>Metasearch"]
-        PERP["perplexica<br/>:3004<br/>Deep Research"]
-    end
-
-    subgraph Agents["Agents & Automation"]
-        HERMES["hermes<br/>:9120 via proxy<br/>Default Agent"]
-        CLAW["openclaw<br/>:7860<br/>Deprecated Agent"]
-        APE["ape<br/>:7890<br/>Policy Engine"]
-        N8N["n8n<br/>:5678<br/>Workflows"]
-    end
-
-    subgraph RAG["RAG Pipeline"]
-        QDRANT["qdrant<br/>:6333<br/>Vector DB"]
-        EMBED["embeddings<br/>:8090<br/>TEI Vectors"]
-    end
-
-    subgraph Media["Media Generation"]
-        COMFY["comfyui<br/>:8188<br/>Image Gen"]
-    end
-
-    subgraph Privacy["Privacy & Observability"]
-        SHIELD["privacy-shield<br/>:8085<br/>PII Protection"]
-        SPY["token-spy<br/>:3005<br/>Usage Monitor"]
-        LANG["langfuse<br/>:3006<br/>LLM Tracing"]
-    end
-
-    subgraph Dev["Development"]
-        CODE["opencode<br/>:3003<br/>Web IDE"]
-    end
-
-    subgraph Access["LAN / Remote Access"]
-        PROXY["dream-proxy<br/>:80<br/>mDNS web entry"]
-        TAIL["tailscale<br/>host network<br/>remote access"]
-    end
-
-    Browser --> WEBUI
-    Browser --> DASH
-    Browser --> LITE
-    Browser --> CODE
-    Browser --> HERMES
-    Browser --> PROXY
-
-    WEBUI --> LLAMA
-    WEBUI --> COMFY
-    WEBUI --> WHISPER
-    WEBUI --> TTS
-    WEBUI --> SEARX
-
-    LITE --> LLAMA
-
-    DASH --> DAPI
-    DAPI --> LLAMA
-    DAPI --> N8N
-    DAPI --> SPY
-    DAPI --> SHIELD
-
-    HERMES --> LLAMA
-    CLAW --> LLAMA
-    CLAW --> SEARX
-
-    PERP --> LLAMA
-    PERP --> SEARX
-
-    SHIELD --> LLAMA
-    PROXY --> WEBUI
-    PROXY --> DASH
-    PROXY --> HERMES
-```
 
 ## Functional Areas
 
@@ -172,38 +83,8 @@ Installer libraries in `installers/lib/` are pure functions (no side effects);
 `lib/service-registry.sh` loads service manifests and port metadata; phases in
 `installers/phases/` execute sequentially.
 
-```mermaid
-graph LR
-    subgraph Libraries["installers/lib/ (pure functions)"]
-        C[constants] --> D[detection]
-        D --> T[tier-map]
-        T --> CS[compose-select]
-        P[packaging]
-        PY[python-runtime]
-        DI[docker-images]
-        PR[progress]
-        SR[service-registry]
-        U[ui]
-        L[logging]
-    end
+![Rendered system diagram](docs/architecture/generated/mermaid-e1bb546f9605.png)
 
-    subgraph Phases["installers/phases/ (sequential)"]
-        P01["01 Preflight"] --> P02["02 Detection"]
-        P02 --> P03["03 Features"]
-        P03 --> P04["04 Requirements"]
-        P04 --> P05["05 Docker"]
-        P05 --> P06["06 Directories"]
-        P06 --> P07["07 DevTools"]
-        P07 --> P08["08 Images"]
-        P08 --> P09["09 Offline"]
-        P09 --> P10["10 AMD Tuning"]
-        P10 --> P11["11 Services"]
-        P11 --> P12["12 Health"]
-        P12 --> P13["13 Summary"]
-    end
-
-    Libraries --> Phases
-```
 
 | Phase | Purpose |
 |-------|---------|
@@ -229,23 +110,8 @@ OpenCode, Perplexica, Hermes, or LiteLLM/Lemonade behavior, review
 
 The stack uses compose file merging. The resolver script dynamically discovers enabled extensions and composes the full stack:
 
-```mermaid
-graph TB
-    BASE["docker-compose.base.yml<br/>(core services)"]
-    GPU["docker-compose.{nvidia,amd,apple,cpu}.yml<br/>(GPU overlay)"]
-    EXT1["extensions/services/comfyui/compose.yaml"]
-    EXT2["extensions/services/n8n/compose.yaml"]
-    EXT3["extensions/services/.../compose.yaml"]
-    EXTGPU["extensions/services/.../compose.nvidia.yaml"]
+![Rendered system diagram](docs/architecture/generated/mermaid-24f8f1dec527.png)
 
-    BASE --> MERGE["resolve-compose-stack.sh"]
-    GPU --> MERGE
-    EXT1 --> MERGE
-    EXT2 --> MERGE
-    EXT3 --> MERGE
-    EXTGPU --> MERGE
-    MERGE --> STACK["Final Docker Compose Stack"]
-```
 
 ## Key Execution Flows
 

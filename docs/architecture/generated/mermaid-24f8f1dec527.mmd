@@ -1,0 +1,15 @@
+graph TB
+    BASE["docker-compose.base.yml<br/>(core services)"]
+    GPU["docker-compose.{nvidia,amd,apple,cpu}.yml<br/>(GPU overlay)"]
+    EXT1["extensions/services/comfyui/compose.yaml"]
+    EXT2["extensions/services/n8n/compose.yaml"]
+    EXT3["extensions/services/.../compose.yaml"]
+    EXTGPU["extensions/services/.../compose.nvidia.yaml"]
+
+    BASE --> MERGE["resolve-compose-stack.sh"]
+    GPU --> MERGE
+    EXT1 --> MERGE
+    EXT2 --> MERGE
+    EXT3 --> MERGE
+    EXTGPU --> MERGE
+    MERGE --> STACK["Final Docker Compose Stack"]
