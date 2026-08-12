@@ -478,6 +478,7 @@ Apache 2.0 — Use it, modify it, ship it. See [LICENSE](LICENSE).
 </div>
 
 <!-- documentation-health:start -->
+
 ## Current repository state
 
 ![ODS system architecture](docs/architecture/ods-system-architecture.png)
