@@ -1,13 +1,13 @@
 # Repository State
 
-Updated: 2026-08-12
+Updated: 2026-08-17
 
 This file is generated from the tracked repository tree. It is committed so
 the documentation record advances with implementation changes.
 
 - Repository: `Thetromboneman1/ODS`
 - Default branch: `boneman/macos-omlx`
-- Implementation fingerprint: `70a130ab4f2d8000`
+- Implementation fingerprint: `fb8a6d3430b7fd32`
 - Maintained documents: 195
 - Architecture assets: 14
 
