@@ -484,7 +484,7 @@ Apache 2.0 — Use it, modify it, ship it. See [LICENSE](LICENSE).
 ![ODS system architecture](docs/architecture/ods-system-architecture.png)
 
 - **Default branch:** `boneman/macos-omlx`
-- **Implementation fingerprint:** `fb8a6d3430b7fd32`
+- **Implementation fingerprint:** `9375e30e7767ff19`
 - **Detected structure:** Automation modules, Deployment modules, GitHub Actions, Tests and validation, Maintained documentation.
 - **Documentation contract:** editable diagram sources, committed PNG renderings,
   resolved local image links, and generated state are checked on every commit.
