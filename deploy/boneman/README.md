@@ -38,6 +38,8 @@ The two Qwen aliases are explicit selections and do not replace the oMLX
 defaults. Codex uses its separate hybrid provider on host port `8042` to combine
 the paid subscription catalog with these same local model IDs. See the
 [canonical architecture and current visual](https://github.com/Thetromboneman1/Boneman_Projects/blob/main/local-ai-platform/ARCHITECTURE.md#system-diagram).
+The [shared Codex picker runbook](https://github.com/Thetromboneman1/Boneman_Projects/blob/main/docs/operations/codex-model-pickers.md)
+documents the matching desktop, CLI, VS Code, and phone Remote lists.
 
 ## Operation
 
