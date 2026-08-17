@@ -31,6 +31,13 @@ All ports bind to loopback. Existing services on `3000`, `8080`, `18080`,
 | `coding` | `mlx-community--gemma-4-26b-a4b-it-4bit` | Coding |
 | `fast` | `mlx-community--gemma-4-e4b-it-4bit` | Fast agent work |
 | `utility` | `mlx-community--gemma-4-e2b-it-4bit` | Routing and utility |
+| `qwen38` | `qwen38-27b-q6-k` through `host.docker.internal:8040` | Stock Q6_K specialist |
+| `qwen38-uncensored` | `qwen38-27b-uncensored-q6-k` through `host.docker.internal:8041` | Uncensored Q6_K specialist |
+
+The two Qwen aliases are explicit selections and do not replace the oMLX
+defaults. Codex uses its separate hybrid provider on host port `8042` to combine
+the paid subscription catalog with these same local model IDs. See the
+[canonical architecture and current visual](https://github.com/Thetromboneman1/Boneman_Projects/blob/main/local-ai-platform/ARCHITECTURE.md#system-diagram).
 
 ## Operation
 
