@@ -42,6 +42,7 @@ services:
 
   litellm:
     environment:
+      QWEN38_UNCENSORED_API_KEY: ${QWEN38_UNCENSORED_API_KEY:-local}
       QWEN38_API_KEY: ${QWEN38_API_KEY:-local}
       OMLX_API_KEY: ${OMLX_API_KEY}
 

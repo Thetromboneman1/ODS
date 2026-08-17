@@ -35,6 +35,12 @@ model_list:
       api_base: http://host.docker.internal:8040/v1
       api_key: os.environ/QWEN38_API_KEY
 
+  - model_name: qwen38-uncensored
+    litellm_params:
+      model: openai/qwen38-27b-uncensored-q6-k
+      api_base: http://host.docker.internal:8041/v1
+      api_key: os.environ/QWEN38_UNCENSORED_API_KEY
+
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
 
