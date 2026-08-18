@@ -6,8 +6,8 @@ This file is generated from the tracked repository tree. It is committed so
 the documentation record advances with implementation changes.
 
 - Repository: `Thetromboneman1/ODS`
-- Default branch: `boneman/macos-omlx`
-- Implementation fingerprint: `9e238291d67066e0`
+- Default branch: `main`
+- Implementation fingerprint: `5b92c86d7dac03cc`
 - Maintained documents: 195
 - Architecture assets: 14
 
