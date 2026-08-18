@@ -104,7 +104,7 @@ probe_omlx() {
     mlx-community--gemma-4-31b-it-4bit \
     mlx-community--gemma-4-26b-a4b-it-4bit \
     mlx-community--gemma-4-e4b-it-4bit \
-    mlx-community--gemma-4-e2b-it-4bit; do
+    unsloth--gemma-4-E2B-it-UD-MLX-4bit; do
     jq -e --arg model "$model" '.data | any(.id == $model)' \
       /tmp/ods-omlx-models.json >/dev/null || {
       printf 'FAIL oMLX required model missing: %s\n' "$model"

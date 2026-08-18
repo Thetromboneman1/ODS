@@ -30,7 +30,7 @@ All ports bind to loopback. Existing services on `3000`, `8080`, `18080`,
 | `default`, `reasoning` | `mlx-community--gemma-4-31b-it-4bit` | Reasoning |
 | `coding` | `mlx-community--gemma-4-26b-a4b-it-4bit` | Coding |
 | `fast` | `mlx-community--gemma-4-e4b-it-4bit` | Fast agent work |
-| `utility` | `mlx-community--gemma-4-e2b-it-4bit` | Routing and utility |
+| `utility` | `unsloth--gemma-4-E2B-it-UD-MLX-4bit` | Routing and utility |
 | `qwen38` | `qwen38-27b-q6-k` through `host.docker.internal:8040` | Stock Q6_K specialist |
 | `qwen38-uncensored` | `qwen38-27b-uncensored-q6-k` through `host.docker.internal:8041` | Uncensored Q6_K specialist |
 
