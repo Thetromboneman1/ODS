@@ -50,6 +50,11 @@ ods/.env
 ods/.env.*
 !ods/.env.example
 ods/data/
+ods/config/litellm/boneman.yaml
+
+# Retired pre-v2.6 runtime compatibility path. The local deployment keeps a
+# data symlink and recovery environment here during the audited migration.
+dream-server/
 ods/models/
 ods/config/openclaw/workspace/
 ods/**/node_modules/
