@@ -1,10 +1,10 @@
 schema_version: 1
-last_audited: "2026-07-26"
+last_audited: "2026-08-27"
 repository: Thetromboneman1/ODS
 upstream:
   repository: Osmantic/ODS
   branch: main
-  installed_release: v2.5.3
+  installed_release: v2.6.0
   strategy: stable-release review merge
 downstream:
   branch: boneman/macos-omlx
@@ -34,13 +34,13 @@ preserved_contract:
     reasoning: mlx-community--gemma-4-31b-it-4bit
     coding: mlx-community--gemma-4-26b-a4b-it-4bit
     fast: mlx-community--gemma-4-e4b-it-4bit
-    utility: mlx-community--gemma-4-e2b-it-4bit
+    utility: unsloth--gemma-4-E2B-it-UD-MLX-4bit
 secret_references:
   - OMLX_API_KEY
   - WEBUI_SECRET
   - DASHBOARD_API_KEY
-  - DREAM_AGENT_KEY
-  - DREAM_SESSION_SECRET
+  - ODS_AGENT_KEY
+  - ODS_SESSION_SECRET
   - SHIELD_API_KEY
   - TOKEN_SPY_API_KEY
   - SEARXNG_SECRET

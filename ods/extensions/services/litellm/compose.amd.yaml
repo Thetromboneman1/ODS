@@ -1,0 +1,13 @@
+# LiteLLM AMD overlay.
+# Inherits LITELLM_MASTER_KEY from base compose.yaml so proxy auth is enforced;
+# the literal `${LITELLM_KEY}` written to .env at install time is non-empty.
+# The base LiteLLM command also handles Langfuse and selects switchboard.yaml
+# when ODS_MODEL_SWITCHBOARD=enabled; this overlay must not replace it.
+# All LiteLLM ports bind to 127.0.0.1 -- no external exposure.
+services:
+  litellm:
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

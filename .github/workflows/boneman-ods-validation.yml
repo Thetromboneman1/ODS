@@ -26,8 +26,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
           python -m pip install \
-            -r dream-server/extensions/services/dashboard-api/requirements.txt \
-            -r dream-server/extensions/services/dashboard-api/tests/requirements-test.txt
+            -r ods/extensions/services/dashboard-api/requirements.txt \
+            -r ods/extensions/services/dashboard-api/tests/requirements-test.txt
 
       - name: Validate deployment files
         run: |
@@ -47,5 +47,5 @@ jobs:
         run: scripts/rebuild-downstream.sh --validate
 
       - name: Run dashboard API regression tests
-        working-directory: dream-server/extensions/services/dashboard-api
+        working-directory: ods/extensions/services/dashboard-api
         run: pytest -q tests/test_helpers.py tests/test_routers.py

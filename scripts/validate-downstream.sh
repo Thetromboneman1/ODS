@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 PROFILE="${ROOT}/deploy/boneman"
-PRODUCT="${ROOT}/dream-server"
+PRODUCT="${ROOT}/ods"
 
 required=(
   ".github/downstream-config-manifest.yml"
@@ -35,6 +35,7 @@ override = yaml.safe_load((root / "deploy/boneman/docker-compose.override.yml").
 litellm = yaml.safe_load((root / "deploy/boneman/litellm.yaml").read_text())
 
 assert manifest["upstream"]["repository"] == "Osmantic/ODS"
+assert manifest["upstream"]["installed_release"] == "v2.6.0"
 assert manifest["downstream"]["branch"] == "boneman/macos-omlx"
 assert manifest["preserved_contract"]["production_engine"] == "oMLX"
 assert manifest["preserved_contract"]["host_endpoint"] == "http://127.0.0.1:18080/v1"
@@ -51,8 +52,8 @@ cp "${PROFILE}/.env.template" "$temporary_env"
   echo "LITELLM_KEY=validation-only"
   echo "WEBUI_SECRET=validation-only"
   echo "DASHBOARD_API_KEY=validation-only"
-  echo "DREAM_AGENT_KEY=validation-only"
-  echo "DREAM_SESSION_SECRET=validation-only"
+  echo "ODS_AGENT_KEY=validation-only"
+  echo "ODS_SESSION_SECRET=validation-only"
   echo "SHIELD_API_KEY=validation-only"
   echo "TOKEN_SPY_API_KEY=validation-only"
   echo "SEARXNG_SECRET=validation-only"
