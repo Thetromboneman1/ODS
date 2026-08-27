@@ -169,11 +169,16 @@ jobs:
             echo "$CONFLICTS"
             echo '```'
           } > "$body_file"
-          issue_number=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
-          if [[ -n "$issue_number" ]]; then
-            gh issue comment "$issue_number" --body-file "$body_file"
-          else
-            gh issue create --title "$title" --body-file "$body_file"
-          fi
           cat "$body_file" >> "$GITHUB_STEP_SUMMARY"
+          has_issues=$(gh api "repos/${GITHUB_REPOSITORY}" --jq .has_issues)
+          if [[ "$has_issues" == "true" ]]; then
+            issue_number=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+            if [[ -n "$issue_number" ]]; then
+              gh issue comment "$issue_number" --body-file "$body_file"
+            else
+              gh issue create --title "$title" --body-file "$body_file"
+            fi
+          else
+            echo "Repository issues are disabled; the conflict is recorded in this run summary." >> "$GITHUB_STEP_SUMMARY"
+          fi
           exit 1

@@ -12,6 +12,8 @@ concurrency:
   group: issue-to-pr-${{ github.event.issue.number }}
   cancel-in-progress: true
 
+permissions: {}
+
 jobs:
   # ============================================================
   # Job 1: Validate — bot filter, secrets, duplicate PR check
@@ -20,6 +22,9 @@ jobs:
     name: Validate Issue
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      issues: read
+      pull-requests: read
     if: >-
       github.event.label.name == 'ai-implement' &&
       github.event.issue.user.login != 'claude[bot]' &&
@@ -64,6 +69,8 @@ jobs:
     if: needs.validate.outputs.should_proceed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
     outputs:
       has_changes: ${{ steps.detect.outputs.has_changes }}
 
@@ -157,6 +164,8 @@ jobs:
     if: needs.implement.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     outputs:
       passed: ${{ steps.final.outputs.passed }}
       diff_lines: ${{ steps.size.outputs.diff_lines }}
@@ -320,6 +329,10 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     outputs:
       pr_number: ${{ steps.create.outputs.pull-request-number }}
       pr_url: ${{ steps.create.outputs.pull-request-url }}
