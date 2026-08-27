@@ -1,0 +1,89 @@
+graph TB
+    subgraph External["User Access (localhost only)"]
+        Browser["Browser"]
+    end
+
+    subgraph Core["Core Services"]
+        LLAMA["llama-server<br/>:8080<br/>LLM Inference"]
+        WEBUI["open-webui<br/>:3000<br/>Chat UI"]
+        DASH["dashboard<br/>:3001<br/>Control Center"]
+        DAPI["dashboard-api<br/>:3002<br/>System Status API"]
+    end
+
+    subgraph Gateway["API Gateway"]
+        LITE["litellm<br/>:4000<br/>OpenAI-compatible proxy"]
+    end
+
+    subgraph Voice["Voice Pipeline"]
+        WHISPER["whisper<br/>:9000<br/>Speech-to-Text"]
+        TTS["tts / Kokoro<br/>:8880<br/>Text-to-Speech"]
+    end
+
+    subgraph Search["Search & Research"]
+        SEARX["searxng<br/>:8888<br/>Metasearch"]
+        PERP["perplexica<br/>:3004<br/>Deep Research"]
+    end
+
+    subgraph Agents["Agents & Automation"]
+        HERMES["hermes<br/>:9120 via proxy<br/>Default Agent"]
+        CLAW["openclaw<br/>:7860<br/>Deprecated Agent"]
+        APE["ape<br/>:7890<br/>Policy Engine"]
+        N8N["n8n<br/>:5678<br/>Workflows"]
+    end
+
+    subgraph RAG["RAG Pipeline"]
+        QDRANT["qdrant<br/>:6333<br/>Vector DB"]
+        EMBED["embeddings<br/>:8090<br/>TEI Vectors"]
+    end
+
+    subgraph Media["Media Generation"]
+        COMFY["comfyui<br/>:8188<br/>Image Gen"]
+    end
+
+    subgraph Privacy["Privacy & Observability"]
+        SHIELD["privacy-shield<br/>:8085<br/>PII Protection"]
+        SPY["token-spy<br/>:3005<br/>Usage Monitor"]
+        LANG["langfuse<br/>:3006<br/>LLM Tracing"]
+    end
+
+    subgraph Dev["Development"]
+        CODE["opencode<br/>:3003<br/>Web IDE"]
+    end
+
+    subgraph Access["LAN / Remote Access"]
+        PROXY["ods-proxy<br/>:80<br/>mDNS web entry"]
+        TAIL["tailscale<br/>host network<br/>remote access"]
+    end
+
+    Browser --> WEBUI
+    Browser --> DASH
+    Browser --> LITE
+    Browser --> CODE
+    Browser --> HERMES
+    Browser --> PROXY
+
+    WEBUI --> LLAMA
+    WEBUI --> COMFY
+    WEBUI --> WHISPER
+    WEBUI --> TTS
+    WEBUI --> SEARX
+
+    LITE --> LLAMA
+
+    DASH --> DAPI
+    DAPI --> LLAMA
+    DAPI --> N8N
+    DAPI --> SPY
+    DAPI --> SHIELD
+
+    HERMES --> LLAMA
+    CLAW --> LLAMA
+    CLAW --> SEARX
+
+    PERP --> LLAMA
+    PERP --> SEARX
+
+    SHIELD --> LLAMA
+    PROXY --> WEBUI
+    PROXY --> DASH
+    PROXY --> HERMES

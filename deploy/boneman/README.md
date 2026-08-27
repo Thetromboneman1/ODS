@@ -5,7 +5,7 @@ Silicon workstation. It keeps the existing oMLX runtime on
 `127.0.0.1:18080` as the production inference engine and does not install or
 start another llama-server, Ollama, Hermes, OpenClaw, or OpenCode instance.
 
-The checkout is pinned to upstream stable release `v2.5.3`. The fork branch is
+The checkout is pinned to upstream stable release `v2.6.0`. The fork branch is
 `boneman/macos-omlx`; `upstream` points to `Osmantic/ODS` and `origin` points to
 `Thetromboneman1/ODS`.
 
@@ -49,7 +49,7 @@ deploy/boneman/install.sh --audit
 deploy/boneman/install.sh --stop
 ```
 
-The installer generates `dream-server/.env` with mode `0600`. It reads the
+The installer generates `ods/.env` with mode `0600`. It reads the
 existing oMLX credential from `~/.omlx/settings.json`, never prints it, and
 does not commit the runtime file. ODS-specific generated keys stay in that
 local runtime file. Public image pulls use a deployment-local empty Docker

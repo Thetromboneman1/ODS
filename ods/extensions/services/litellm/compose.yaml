@@ -1,0 +1,77 @@
+services:
+  litellm:
+    image: ghcr.io/berriai/litellm:v1.81.3-stable
+    container_name: ods-litellm
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - LITELLM_MASTER_KEY=${LITELLM_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - LANGFUSE_ENABLED=${LANGFUSE_ENABLED:-false}
+      - ODS_MODE=${ODS_MODE:-local}
+      - ODS_MODEL_SWITCHBOARD=${ODS_MODEL_SWITCHBOARD:-observe}
+      - TOKEN_SPY_URL=${TOKEN_SPY_URL:-http://token-spy:8080}
+      - TOKEN_SPY_API_KEY=${TOKEN_SPY_API_KEY:-}
+    volumes:
+      - ./config/litellm/${ODS_MODE:-local}.yaml:/app/config.yaml:ro,z
+      - ./config/litellm/switchboard.yaml:/app/switchboard.yaml:ro,z
+      - ./extensions/services/litellm/select-config.sh:/app/ods-select-config.sh:ro,z
+      # LiteLLM resolves custom callback modules relative to the generated
+      # /tmp/config.yaml, so the callback must be mounted alongside it.
+      - ./extensions/services/litellm/ods_token_spy_callback.py:/tmp/ods_token_spy_callback.py:ro,z
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${LITELLM_PORT:-4000}:4000"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        CONFIG_PATH=$$(sh /app/ods-select-config.sh)
+        if [ -z "$$CONFIG_PATH" ] || [ ! -r "$$CONFIG_PATH" ]; then
+          echo "ERROR: LiteLLM config selector returned an unreadable path: $${CONFIG_PATH:-<empty>}" >&2
+          exit 1
+        fi
+        export CONFIG_PATH
+        python3 -c "
+        import os
+        import yaml
+        with open(os.environ['CONFIG_PATH']) as f:
+            cfg = yaml.safe_load(f)
+        settings = cfg.setdefault('litellm_settings', {})
+        callbacks = settings.get('callbacks', [])
+        if not isinstance(callbacks, list):
+            callbacks = []
+        if os.environ.get('TOKEN_SPY_URL') and os.environ.get('TOKEN_SPY_API_KEY'):
+            callbacks.append('ods_token_spy_callback.ods_token_spy_callback')
+        settings['callbacks'] = list(dict.fromkeys(callbacks))
+        if os.environ.get('LANGFUSE_ENABLED') == 'true':
+            success_callbacks = settings.get('success_callback', [])
+            if not isinstance(success_callbacks, list):
+                success_callbacks = []
+            success_callbacks.append('langfuse')
+            settings['success_callback'] = list(dict.fromkeys(success_callbacks))
+        with open('/tmp/config.yaml', 'w') as f:
+            yaml.dump(cfg, f, default_flow_style=False)
+        "
+        exec litellm --config /tmp/config.yaml --port 4000
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4000/health/readiness', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

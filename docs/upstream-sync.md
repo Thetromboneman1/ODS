@@ -1,6 +1,6 @@
 # ODS Upstream Synchronization
 
-Last audited: 2026-07-26
+Last audited: 2026-08-27
 
 Authoritative upstream is `Osmantic/ODS`. The downstream branch
 `boneman/macos-omlx` is intentionally pinned to audited stable releases and

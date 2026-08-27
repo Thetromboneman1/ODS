@@ -36,15 +36,17 @@ services:
       LLM_MODEL: ${LLM_MODEL:-mlx-community--gemma-4-31b-it-4bit}
       LLM_BACKEND: omlx
       LLM_API_BASE_PATH: /v1
-      DREAM_TALK_VISION_URL: ${OMLX_HOST_URL:-http://host.docker.internal:18080}/v1
-      DREAM_TALK_VISION_KEY: ${OMLX_API_KEY}
-      DREAM_TALK_VISION_MODEL: mlx-community--gemma-4-31b-it-4bit
+      ODS_TALK_VISION_URL: ${OMLX_HOST_URL:-http://host.docker.internal:18080}/v1
+      ODS_TALK_VISION_KEY: ${OMLX_API_KEY}
+      ODS_TALK_VISION_MODEL: mlx-community--gemma-4-31b-it-4bit
 
   litellm:
     environment:
       QWEN38_UNCENSORED_API_KEY: ${QWEN38_UNCENSORED_API_KEY:-local}
       QWEN38_API_KEY: ${QWEN38_API_KEY:-local}
       OMLX_API_KEY: ${OMLX_API_KEY}
+    volumes:
+      - ./config/litellm/boneman.yaml:/app/config.yaml:ro,z
 
   token-spy:
     environment:

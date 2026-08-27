@@ -1,6 +1,6 @@
 # Boneman ODS Downstream Customizations
 
-Last audited: 2026-07-26
+Last audited: 2026-08-27
 
 The machine-readable contract is
 `.github/downstream-config-manifest.yml`. The maintained overlay is
@@ -13,7 +13,7 @@ The downstream profile preserves:
 - loopback-only ODS service bindings;
 - collision-free ODS ports;
 - the Docker-to-host `host.docker.internal` boundary;
-- generated runtime secrets in `dream-server/.env` with mode `0600`; and
+- generated runtime secrets in `ods/.env` with mode `0600`; and
 - manual production promotion.
 
 Secret values are never stored in the manifest or repository. The installer
