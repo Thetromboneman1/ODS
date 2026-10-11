@@ -1,0 +1,133 @@
+name: Documentation health writer
+
+on:
+  workflow_run:
+    workflows: [Documentation health]
+    types: [completed]
+
+permissions: {}
+
+concurrency:
+  group: documentation-health-writer-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_branch == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    outputs:
+      committed_sha: ${{ steps.apply.outputs.committed_sha }}
+    steps:
+      - name: Check out the exact validated commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Apply the validated documentation patch
+        id: apply
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          auth_header="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
+            fetch origin "${DEFAULT_BRANCH}"
+          [[ "$(git rev-parse "origin/${DEFAULT_BRANCH}")" == "${VALIDATED_SHA}" ]] || {
+            echo "::notice::Default branch moved after validation; refusing a stale write."
+            exit 0
+          }
+          mkdir -p "$RUNNER_TEMP/documentation-health"
+          if ! gh run download "$RUN_ID" --name documentation-health-patch --dir "$RUNNER_TEMP/documentation-health"; then
+            echo "::notice::No documentation update artifact was produced."
+            exit 0
+          fi
+          git apply --index --check "$RUNNER_TEMP/documentation-health/documentation-health.patch"
+          git apply --index "$RUNNER_TEMP/documentation-health/documentation-health.patch"
+          python3 - <<'PY'
+          import subprocess
+          import sys
+
+          excluded_parts = {".git", "node_modules", "vendor", ".venv", "dist", "build", "coverage"}
+          excluded_prefixes = (
+              "docs/reference/",
+              ".agents/",
+              ".github/prompts/",
+              ".github/chatmodes/",
+              "skills/",
+              "optional-skills/",
+          )
+
+          def is_generator_managed(path: str) -> bool:
+              parts = path.split("/")
+              maintained_document = (
+                  path.endswith((".md", ".mdx", ".html"))
+                  and not excluded_parts.intersection(parts)
+                  and not path.startswith(excluded_prefixes)
+                  and "/templates/" not in f"/{path}"
+              )
+              architecture_asset = (
+                  path.startswith("docs/architecture/generated/")
+                  or (
+                      path.startswith("docs/architecture/")
+                      and path.endswith(("-system-architecture.png", "-system-architecture.svg"))
+                  )
+              )
+              return maintained_document or architecture_asset
+          paths = subprocess.check_output(
+              ["git", "diff", "--cached", "--name-only"], text=True
+          ).splitlines()
+          rejected = [
+              path
+              for path in paths
+              if not is_generator_managed(path)
+          ]
+          if rejected:
+              print("Patch contains non-allowlisted paths:", file=sys.stderr)
+              print("\n".join(rejected), file=sys.stderr)
+              raise SystemExit(1)
+          PY
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: refresh generated repository state [skip ci]"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${auth_header}" \
+            push origin "HEAD:${DEFAULT_BRANCH}"
+          echo "committed_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  verify-generated-commit:
+    needs: apply
+    if: needs.apply.outputs.committed_sha != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the exact generated commit without credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.apply.outputs.committed_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install SVG renderer
+        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends librsvg2-bin
+      - name: Verify generated documentation at the published tip
+        env:
+          REPOSITORY_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          python3 scripts/documentation_health.py --check
+          git diff --check
+          test -z "$(git status --porcelain)"
