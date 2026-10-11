@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,19 @@ from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_PATH = ROOT / "config" / "dependency-lock.json"
+OPEN_INTERPRETER_DOCKERFILE = Path(
+    "extensions/library/services/open-interpreter/Dockerfile"
+)
+OPEN_INTERPRETER_REQUIREMENTS = frozenset(
+    {
+        "open-interpreter==0.4.3",
+        "setuptools<82",
+        "fastapi==0.111.0",
+        "uvicorn==0.42.0",
+        "pydantic==2.12.5",
+    }
+)
+BLOCKED_LITELLM_VERSIONS = frozenset({"1.82.7", "1.82.8"})
 
 IMAGE_RE = re.compile(r"^\s*image:\s*(?P<value>\S+)")
 ARG_RE = re.compile(r"^\s*ARG\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)(?:=(?P<value>\S+))?")
@@ -128,6 +142,160 @@ def _dockerfile_image_refs(path: Path, root: Path = ROOT) -> list[ImageRef]:
             )
         )
     return refs
+
+
+def _dockerfile_instructions(path: Path) -> list[tuple[int, str]]:
+    """Return Dockerfile logical instructions with their starting line."""
+    instructions: list[tuple[int, str]] = []
+    parts: list[str] = []
+    start_line = 0
+
+    for line_no, raw_line in enumerate(
+        path.read_text(encoding="utf-8").splitlines(), start=1
+    ):
+        line = _strip_inline_comment(raw_line).strip()
+        if not parts and not line:
+            continue
+        if not parts:
+            start_line = line_no
+        continued = line.endswith("\\")
+        parts.append(line[:-1].strip() if continued else line)
+        if not continued:
+            instructions.append((start_line, " ".join(part for part in parts if part)))
+            parts = []
+
+    if parts:
+        instructions.append((start_line, " ".join(part for part in parts if part)))
+    return instructions
+
+
+def _is_pip_executable(token: str) -> bool:
+    name = token.rsplit("/", 1)[-1]
+    return re.fullmatch(r"pip(?:\d+(?:\.\d+)*)?", name) is not None
+
+
+def _is_python_executable(token: str) -> bool:
+    name = token.rsplit("/", 1)[-1]
+    return re.fullmatch(r"python(?:\d+(?:\.\d+)*)?", name) is not None
+
+
+def _pip_requirements_from_shell_segment(tokens: list[str]) -> list[str] | None:
+    command_end = 0
+    for index, token in enumerate(tokens):
+        if _is_python_executable(token) and tokens[index + 1 : index + 3] == ["-m", "pip"]:
+            command_end = index + 3
+            break
+        if _is_pip_executable(token):
+            command_end = index + 1
+            break
+    if command_end == 0:
+        return None
+
+    try:
+        install_index = tokens.index("install", command_end)
+    except ValueError:
+        return None
+    return [token for token in tokens[install_index + 1 :] if not token.startswith("-")]
+
+
+def _pip_install_transactions(path: Path) -> list[tuple[int, list[str]]]:
+    transactions: list[tuple[int, list[str]]] = []
+    for line_no, instruction in _dockerfile_instructions(path):
+        try:
+            tokens = shlex.split(instruction)
+        except ValueError:
+            continue
+        if not tokens or tokens[0].upper() != "RUN":
+            continue
+        segment_start = 1
+        for segment_end in range(1, len(tokens) + 1):
+            at_end = segment_end == len(tokens)
+            if not at_end and tokens[segment_end] not in {"&&", "||", ";", "|"}:
+                continue
+            requirements = _pip_requirements_from_shell_segment(
+                tokens[segment_start:segment_end]
+            )
+            if requirements is not None:
+                transactions.append((line_no, requirements))
+            segment_start = segment_end + 1
+    return transactions
+
+
+def _pip_token_locations(path: Path) -> list[int]:
+    pip_token = re.compile(
+        r"(?i)(?:^|[^A-Za-z0-9_])pip(?:\d+(?:\.\d+)*)?(?:$|[^A-Za-z0-9_])"
+    )
+    locations: list[int] = []
+    for line_no, instruction in _dockerfile_instructions(path):
+        if re.match(r"(?i)^RUN\b", instruction) is None:
+            continue
+        locations.extend(line_no for _ in pip_token.finditer(instruction))
+    return locations
+
+
+def _excluded_versions(requirement: str, project: str) -> set[str]:
+    match = re.fullmatch(
+        rf"(?i){re.escape(project)}(?P<specifiers>(?:!=[^,\s]+)(?:,!=[^,\s]+)*)",
+        requirement,
+    )
+    if match is None:
+        return set()
+    return {
+        specifier.removeprefix("!=")
+        for specifier in match.group("specifiers").split(",")
+    }
+
+
+def validate_open_interpreter_litellm_guard(root: Path = ROOT) -> list[str]:
+    """Ensure compromised LiteLLM releases cannot satisfy Open Interpreter's install."""
+    path = root / OPEN_INTERPRETER_DOCKERFILE
+    if not path.exists():
+        return [f"missing Open Interpreter Dockerfile: {OPEN_INTERPRETER_DOCKERFILE}"]
+
+    errors: list[str] = []
+    pip_token_locations = _pip_token_locations(path)
+    if len(pip_token_locations) != 1:
+        errors.append(
+            f"{OPEN_INTERPRETER_DOCKERFILE.as_posix()}: expected exactly one pip token "
+            f"across RUN instructions, found {len(pip_token_locations)}"
+        )
+
+    transactions = _pip_install_transactions(path)
+    if len(transactions) != 1:
+        errors.append(
+            f"{OPEN_INTERPRETER_DOCKERFILE.as_posix()}: expected exactly one pip install "
+            f"transaction, found {len(transactions)}"
+        )
+
+    guarded_transaction_found = False
+    for line_no, requirements in transactions:
+        if not any(requirement.startswith("open-interpreter") for requirement in requirements):
+            continue
+        location = f"{OPEN_INTERPRETER_DOCKERFILE.as_posix()}:{line_no}"
+        missing_direct_pins = sorted(OPEN_INTERPRETER_REQUIREMENTS - set(requirements))
+        if missing_direct_pins:
+            errors.append(
+                f"{location}: required direct pin(s) changed or missing: "
+                f"{', '.join(missing_direct_pins)}"
+            )
+        excluded = set()
+        for requirement in requirements:
+            excluded.update(_excluded_versions(requirement, "litellm"))
+        missing = sorted(BLOCKED_LITELLM_VERSIONS - excluded)
+        if missing:
+            errors.append(
+                f"{location}: the same pip install transaction must exclude compromised "
+                f"LiteLLM version(s): {', '.join(missing)}"
+            )
+        else:
+            guarded_transaction_found = True
+
+    if not guarded_transaction_found and not errors:
+        errors.append(
+            f"{OPEN_INTERPRETER_DOCKERFILE.as_posix()}: no guarded "
+            "Open Interpreter pip install transaction found"
+        )
+    return errors
 
 
 def _image_ref_files(bases: Iterable[Path]) -> set[Path]:
@@ -358,6 +526,7 @@ def check(path: Path = LOCK_PATH, root: Path = ROOT) -> list[str]:
     errors = _validate_lock_shape(lock, root)
     errors.extend(validate_refs(discover_image_refs(root), lock, root))
     errors.extend(validate_ephemeral_sha_tags(discover_extension_library_image_refs(root)))
+    errors.extend(validate_open_interpreter_litellm_guard(root))
     return errors
 
 
