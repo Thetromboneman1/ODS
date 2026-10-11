@@ -437,12 +437,8 @@ def query_report(start: str, end: str) -> dict:
         day_row["cache_read_tokens"] += cache_read
         day_row["cache_write_tokens"] += cache_write
 
-        for key, collection, base in (
-            ((model, provider, service, source), models, {"model": model, "provider": provider, "service": service, "cost_source": source}),
-            (service, services, {"service": service}),
-            (source, sources, {"source": source}),
-        ):
-            target = collection.setdefault(key, {
+        def new_totals(**base: str) -> dict:
+            return {
                 **base,
                 "requests": 0,
                 "input_tokens": 0,
@@ -450,7 +446,15 @@ def query_report(start: str, end: str) -> dict:
                 "cache_read_tokens": 0,
                 "cache_write_tokens": 0,
                 "cost_usd": 0,
-            })
+            }
+
+        for target in (
+            models.setdefault((model, provider, service, source), new_totals(
+                model=model, provider=provider, service=service, cost_source=source,
+            )),
+            services.setdefault(service, new_totals(service=service)),
+            sources.setdefault(source, new_totals(source=source)),
+        ):
             target["requests"] += 1
             target["input_tokens"] += input_tokens
             target["output_tokens"] += output_tokens

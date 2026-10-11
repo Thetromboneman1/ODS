@@ -109,7 +109,7 @@ def test_post_never_retries_transport_failure(monkeypatch):
 
 def test_post_retries_connect_failure_before_request_is_sent(monkeypatch):
     calls = 0
-    sleeps = []
+    sleeps: list[float] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         nonlocal calls
@@ -137,7 +137,7 @@ def test_post_retries_connect_failure_before_request_is_sent(monkeypatch):
 @pytest.mark.asyncio
 async def test_async_post_retries_connect_failure_before_request_is_sent(monkeypatch):
     calls = 0
-    sleeps = []
+    sleeps: list[float] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         nonlocal calls

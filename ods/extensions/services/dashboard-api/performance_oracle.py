@@ -16,7 +16,7 @@ import os
 import platform
 import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import TypedDict, Any, Optional
 
 from gguf_inspector import inspect_gguf
 from context_policy import HERMES_MIN_CONTEXT, HERMES_TARGET_CONTEXT
@@ -121,7 +121,7 @@ def _system_ram_gb() -> int:
 
             stat = MEMORYSTATUSEX()
             stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
-            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
+            if getattr(ctypes, "windll").kernel32.GlobalMemoryStatusEx(ctypes.byref(stat)):
                 return int(round(stat.ullTotalPhys / (1024**3)))
         pages = os.sysconf("SC_PHYS_PAGES")
         page_size = os.sysconf("SC_PAGE_SIZE")
@@ -1163,6 +1163,11 @@ def _recommendation_score(model: dict[str, Any], capacity_gb: float, profile: st
     return specialty_weight + family_bonus + context_bonus + capability - headroom_penalty
 
 
+class _RankedCandidate(TypedDict):
+    model: dict[str, Any]
+    score: float
+
+
 def rank_pre_download_models(catalog: list[dict[str, Any]], gpu_info: Optional[GPUInfo],
                              profile: str = "qwen", installable_only: bool = False,
                              limit: int = 3, system_ram_gb: int | None = None) -> list[dict[str, Any]]:
@@ -1178,7 +1183,7 @@ def rank_pre_download_models(catalog: list[dict[str, Any]], gpu_info: Optional[G
     normalized_profile = _model_profile(explicit_profile=profile)
     capacity_gb = _usable_model_memory_gb(gpu_info) if gpu_info else 4.0
 
-    candidates = []
+    candidates: list[_RankedCandidate] = []
     for model in catalog:
         if installable_only and not model.get("gguf_url"):
             continue

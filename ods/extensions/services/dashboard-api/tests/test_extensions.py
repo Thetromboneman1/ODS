@@ -1,5 +1,7 @@
 """Tests for extensions portal endpoints."""
 
+from typing import Any
+from conftest import record_call as _record_call
 import contextlib
 import json
 import os
@@ -1427,7 +1429,7 @@ class TestComposeCacheInvalidation:
         )
         monkeypatch.setattr(
             "routers.extensions._call_agent",
-            lambda action, svc: order.append(f"agent:{action}:{svc}") or True,
+            lambda action, svc: _record_call(order, f"agent:{action}:{svc}", True),
         )
 
         resp = test_client.post(
@@ -3404,7 +3406,7 @@ class TestSyncExtensionConfig:
         """The helper POSTs the expected payload through the shared transport."""
         from routers import extensions as ext_mod
 
-        captured = {}
+        captured: dict[str, Any] = {}
 
         def _fake_request_json(method, path, *, payload=None, timeout=None):
             captured.update(
@@ -3782,11 +3784,11 @@ class TestUpdateExtension:
         ext_mod, lib_dir, _user, installed = self._prepare(monkeypatch, tmp_path)
         original = (installed / "manifest.yaml").read_text()
         (lib_dir / "my-ext" / "manifest.yaml").write_text("release: two\n")
-        agent_calls = []
+        agent_calls: list[tuple[str, str]] = []
         monkeypatch.setattr(
             ext_mod,
             "_call_agent",
-            lambda action, sid: agent_calls.append((action, sid)) or True,
+            lambda action, sid: _record_call(agent_calls, (action, sid), True),
         )
 
         assert test_client.post(

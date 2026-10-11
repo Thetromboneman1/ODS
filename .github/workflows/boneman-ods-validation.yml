@@ -51,4 +51,4 @@ jobs:
 
       - name: Run dashboard API regression tests
         working-directory: ods/extensions/services/dashboard-api
-        run: pytest -q tests/test_helpers.py tests/test_routers.py
+        run: pytest -q tests

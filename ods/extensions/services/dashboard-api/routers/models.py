@@ -98,7 +98,7 @@ _ACTIVE_BOOTSTRAP_STATUSES = {"starting", "downloading", "verifying", "swapping"
 _agent_model_status_cache_lock = threading.Lock()
 _agent_model_status_cache_at = 0.0
 _agent_model_status_cache_value: Optional[dict] = None
-_GPU_VRAM_EXCEPTIONS = (
+_GPU_VRAM_EXCEPTIONS: tuple[type[BaseException], ...] = (
     ImportError,
     FileNotFoundError,
     OSError,
@@ -816,7 +816,7 @@ def _hf_artifact_id(filenames: list[str]) -> str:
 
 def _hf_gguf_artifacts(payload: dict[str, Any]) -> list[dict[str, Any]]:
     siblings = payload.get("siblings") if isinstance(payload.get("siblings"), list) else []
-    ggufs = []
+    ggufs: list[dict[str, Any]] = []
     for sibling in siblings:
         filename = str(sibling.get("rfilename") or "") if isinstance(sibling, dict) else ""
         if not _hf_supported_gguf_filename(filename):

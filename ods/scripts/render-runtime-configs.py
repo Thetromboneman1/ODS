@@ -18,7 +18,7 @@ import tempfile
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, TypedDict
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -728,7 +728,15 @@ def validate_remote_inputs(inputs: RenderInputs) -> None:
         )
 
 
-def render(args: argparse.Namespace) -> dict[str, object]:
+class RenderPayload(TypedDict):
+    version: str
+    mode: str
+    inputs: dict[str, str | int | bool]
+    files: list[dict[str, str]]
+    written: list[str]
+
+
+def render(args: argparse.Namespace) -> RenderPayload:
     inputs = RenderInputs(
         switchboard_mode=getattr(args, 'switchboard_mode', 'observe'),
         model=args.model,

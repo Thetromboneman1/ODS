@@ -29,6 +29,17 @@ def test_repo_dependency_lock_passes() -> None:
     assert errors == [], "\n".join(errors)
 
 
+def test_malformed_lock_collections_are_rejected() -> None:
+    module = load_module()
+    for name in ("entries", "allow_latest", "allow_local_images", "allow_variable_refs"):
+        for invalid in (None, "not-an-array", {"path": "compose.yaml"}, 1):
+            lock = {"version": 1, name: invalid}
+            errors = module._validate_lock_shape(lock, ROOT)
+            assert f"{name} must be an array" in errors
+            # Ref validation must not crash or treat mapping keys as entries.
+            module.validate_refs([], lock)
+
+
 def test_unallowlisted_latest_is_rejected() -> None:
     module = load_module()
     lock = {
@@ -181,6 +192,7 @@ def test_extension_library_sha_tags_are_rejected() -> None:
 def main() -> int:
     tests = [
         test_repo_dependency_lock_passes,
+        test_malformed_lock_collections_are_rejected,
         test_unallowlisted_latest_is_rejected,
         test_variable_refs_must_be_documented,
         test_ephemeral_sha_tags_are_rejected,

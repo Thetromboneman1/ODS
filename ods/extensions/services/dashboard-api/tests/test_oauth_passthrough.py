@@ -36,8 +36,8 @@ def oauth_client(monkeypatch):
     tmp = tempfile.mkdtemp(prefix="ods-oauth-test-")
     monkeypatch.setenv("ODS_PERSONA_DIR", tmp)
     client = TestClient(main_module.app)
-    client.tmp = Path(tmp)
-    client.auth_headers = {"Authorization": "Bearer test-key-12345"}
+    setattr(client, "tmp", Path(tmp))
+    setattr(client, "auth_headers", {"Authorization": "Bearer test-key-12345"})
     return client
 
 

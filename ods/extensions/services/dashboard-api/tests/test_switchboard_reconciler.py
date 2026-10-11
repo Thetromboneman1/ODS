@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from conftest import record_call as _record_call
 import json
 import sys
 from pathlib import Path
@@ -233,10 +234,7 @@ class TestNativeLlamaAdapter:
         calls = []
         adapter = ad.NativeLlamaAdapter(
             restart=lambda _e: calls.append("restart"),
-            wait_ready=lambda *a, **k: (
-                calls.append("wait"),
-                _readiness_proof("Win.gguf", 8192),
-            )[1],
+            wait_ready=lambda *a, **k: _record_call(calls, "wait", _readiness_proof("Win.gguf", 8192)),
             expected_gguf="Win.gguf",
             context_length=8192,
         )

@@ -218,14 +218,24 @@ def _arg_default_present(path: Path, arg: str, default: str) -> bool:
     return expected in path.read_text(encoding="utf-8")
 
 
+def _lock_list(lock: dict[str, object], name: str) -> list[object]:
+    """Narrow JSON collections; malformed shapes are reported by validation."""
+    value = lock.get(name, [])
+    return value if isinstance(value, list) else []
+
+
 def _validate_lock_shape(lock: dict[str, object], root: Path) -> list[str]:
     errors: list[str] = []
     if lock.get("version") != 1:
         errors.append("dependency-lock.json version must be 1")
 
+    for name in ("entries", "allow_latest", "allow_local_images", "allow_variable_refs"):
+        if not isinstance(lock.get(name, []), list):
+            errors.append(f"{name} must be an array")
+
     ids: set[str] = set()
     entry_keys: set[tuple[str, str]] = set()
-    for entry in lock.get("entries", []):
+    for entry in _lock_list(lock, "entries"):
         if not isinstance(entry, dict):
             errors.append("lock entries must be objects")
             continue
@@ -252,7 +262,7 @@ def _validate_lock_shape(lock: dict[str, object], root: Path) -> list[str]:
 
     for list_name in ("allow_latest", "allow_local_images", "allow_variable_refs"):
         seen: set[tuple[str, str]] = set()
-        for item in lock.get(list_name, []):
+        for item in _lock_list(lock, list_name):
             if not isinstance(item, dict):
                 errors.append(f"{list_name} entries must be objects")
                 continue
@@ -282,15 +292,15 @@ def _validate_lock_shape(lock: dict[str, object], root: Path) -> list[str]:
 
 def validate_refs(refs: Iterable[ImageRef], lock: dict[str, object], root: Path = ROOT) -> list[str]:
     errors: list[str] = []
-    entry_keys = {_key(entry) for entry in lock.get("entries", []) if isinstance(entry, dict)}
+    entry_keys = {_key(entry) for entry in _lock_list(lock, "entries") if isinstance(entry, dict)}
     latest_allow = {
-        _key(entry) for entry in lock.get("allow_latest", []) if isinstance(entry, dict)
+        _key(entry) for entry in _lock_list(lock, "allow_latest") if isinstance(entry, dict)
     }
     local_allow = {
-        _key(entry) for entry in lock.get("allow_local_images", []) if isinstance(entry, dict)
+        _key(entry) for entry in _lock_list(lock, "allow_local_images") if isinstance(entry, dict)
     }
     variable_allow = {
-        _key(entry) for entry in lock.get("allow_variable_refs", []) if isinstance(entry, dict)
+        _key(entry) for entry in _lock_list(lock, "allow_variable_refs") if isinstance(entry, dict)
     }
 
     discovered_keys: set[tuple[str, str]] = set()

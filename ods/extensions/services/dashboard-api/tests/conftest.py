@@ -6,6 +6,7 @@ import sys
 import types
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+from typing import TypeVar
 
 import pytest
 
@@ -29,11 +30,9 @@ if "fcntl" not in sys.modules:
     try:
         import fcntl  # type: ignore # noqa: F401
     except ModuleNotFoundError:
-        sys.modules["fcntl"] = types.SimpleNamespace(
-            LOCK_EX=0,
-            LOCK_UN=0,
-            flock=lambda *args, **kwargs: None,
-        )
+        stub = types.ModuleType("fcntl")
+        stub.__dict__.update(LOCK_EX=0, LOCK_UN=0, flock=lambda *args, **kwargs: None)
+        sys.modules["fcntl"] = stub
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 
@@ -81,7 +80,7 @@ def test_client(monkeypatch):
     from main import app
 
     client = TestClient(app, raise_server_exceptions=True)
-    client.auth_headers = {"Authorization": f"Bearer {_TEST_API_KEY}"}
+    setattr(client, "auth_headers", {"Authorization": f"Bearer {_TEST_API_KEY}"})
     return client
 
 
@@ -126,3 +125,13 @@ def mock_aiohttp_session():
         return session
 
     return _factory
+
+
+_RecordValue = TypeVar("_RecordValue")
+_RecordResult = TypeVar("_RecordResult")
+
+
+def record_call(calls: list[_RecordValue], value: _RecordValue, result: _RecordResult) -> _RecordResult:
+    """Record a test-double call without treating list.append's None as a value."""
+    calls.append(value)
+    return result

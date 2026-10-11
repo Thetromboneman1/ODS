@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 from pathlib import Path
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -50,7 +51,7 @@ def _service_restartability(config: dict) -> tuple[bool, str | None]:
 def _scan_service_disk() -> dict[str, dict]:
     """Scan /data/* directories and map to services."""
     data_path = Path(DATA_DIR)
-    results = {}
+    results: dict[str, dict] = {}
     if not data_path.is_dir():
         return results
     for child in data_path.iterdir():
@@ -94,27 +95,21 @@ async def service_resources(api_key: str = Depends(verify_api_key)):
     """Get per-service resource metrics (CPU, RAM, disk)."""
     from main import _cache  # noqa: PLC0415 — deferred import to avoid circular dependency
 
-    container_stats = _cache.get("service_resources_containers")
-    disk_usage = _cache.get("service_resources_disk")
+    container_stats = cast(list[dict] | None, _cache.get("service_resources_containers"))
+    disk_usage = cast(dict[str, dict] | None, _cache.get("service_resources_disk"))
 
     need_containers = container_stats is None
     need_disk = disk_usage is None
 
     if need_containers or need_disk:
-        tasks = []
-        if need_containers:
-            tasks.append(asyncio.to_thread(_fetch_container_stats))
-        if need_disk:
-            tasks.append(asyncio.to_thread(_scan_service_disk))
-
-        results = await asyncio.gather(*tasks)
-        idx = 0
-        if need_containers:
-            container_stats = results[idx]
-            idx += 1
+        container_task = asyncio.create_task(asyncio.to_thread(_fetch_container_stats)) if need_containers else None
+        disk_task = asyncio.create_task(asyncio.to_thread(_scan_service_disk)) if need_disk else None
+        await asyncio.gather(*(task for task in (container_task, disk_task) if task is not None))
+        if container_task is not None:
+            container_stats = container_task.result()
             _cache.set("service_resources_containers", container_stats, 20)
-        if need_disk:
-            disk_usage = results[idx]
+        if disk_task is not None:
+            disk_usage = disk_task.result()
             _cache.set("service_resources_disk", disk_usage, 60)
 
     container_stats = container_stats or []
@@ -195,7 +190,7 @@ async def restart_service(service_id: str, api_key: str = Depends(verify_api_key
             detail=restart_unavailable_reason or f"Service cannot be restarted: {service_id}",
         )
 
-    body = {"service_id": service_id}
+    body: dict[str, str | int] = {"service_id": service_id}
     if service_id in {"dashboard", "dashboard-api"}:
         # Restarting the UI proxy or the API synchronously can kill the very
         # request that initiated it. Let the host agent acknowledge first.

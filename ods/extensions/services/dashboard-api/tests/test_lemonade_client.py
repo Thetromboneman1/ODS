@@ -63,7 +63,7 @@ async def test_health_sends_bearer_header():
 
 @pytest.mark.asyncio
 async def test_chat_completion_posts_openai_shape():
-    seen = {}
+    seen: dict[str, str | bytes] = {}
 
     async def handler(request: httpx.Request) -> httpx.Response:
         seen["url"] = str(request.url)
@@ -88,6 +88,7 @@ async def test_chat_completion_posts_openai_shape():
 
     assert payload["choices"][0]["message"]["content"] == "ok"
     assert seen["url"] == "http://lemonade:13305/api/v1/chat/completions"
+    assert isinstance(seen["body"], bytes)
     assert b'"model":"Qwen3-0.6B-GGUF"' in seen["body"]
     assert b'"temperature":0' in seen["body"]
     await client.aclose()

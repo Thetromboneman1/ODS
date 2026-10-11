@@ -331,7 +331,7 @@ def _group_into_units(messages: list[dict]) -> list[list[dict]]:
     Orphaned messages at the start (before the first user message) form their own unit.
     """
     units = []
-    current_unit = []
+    current_unit: list[dict] = []
 
     for msg in messages:
         role = msg.get("role", "")

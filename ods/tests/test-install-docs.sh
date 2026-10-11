@@ -132,6 +132,22 @@ tracked_files = [
     if entry
 ]
 
+def is_legacy_runtime_ignore(relative_path, line):
+    legacy_directory = retired_product_prefix + "-" + retired_product_name + "/"
+    return relative_path == ".gitignore" and line == legacy_directory
+
+legacy_ignore = retired_product_prefix + "-" + retired_product_name + "/"
+if not is_legacy_runtime_ignore(".gitignore", legacy_ignore):
+    raise SystemExit("[FAIL] Legacy runtime exclusion is not recognized")
+for path, line in (
+    ("README.md", legacy_ignore),
+    ("ods/.gitignore", legacy_ignore),
+    (".gitignore", "!" + legacy_ignore),
+    (".gitignore", "curl https://example.test/" + legacy_ignore),
+):
+    if is_legacy_runtime_ignore(path, line):
+        raise SystemExit("[FAIL] Legacy runtime exception permits a non-exclusion")
+
 matches = []
 for relative_path in tracked_files:
     if has_retired_reference(relative_path):
@@ -153,7 +169,7 @@ for relative_path in tracked_files:
 
     text = data.decode("utf-8", errors="ignore")
     for line_number, line in enumerate(text.splitlines(), start=1):
-        if has_retired_reference(line):
+        if has_retired_reference(line) and not is_legacy_runtime_ignore(relative_path, line):
             matches.append(f"{relative_path}:{line_number}:{line}")
 
 if matches:
