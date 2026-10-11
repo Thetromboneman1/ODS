@@ -7,45 +7,103 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: documentation-health-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  documentation-health:
+  validate:
     runs-on: ubuntu-latest
-    env:
-      REPOSITORY_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
     steps:
-      - name: Check out repository
+      - name: Check out repository without credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Install SVG renderer
         run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends librsvg2-bin
-      - name: Refresh generated documentation
-        run: python3 scripts/documentation_health.py --write
-      - name: Verify documentation and rendered diagrams
-        run: python3 scripts/documentation_health.py --check
-      - name: Require generated files in pull requests
-        if: github.event_name == 'pull_request'
+      - name: Refresh and verify generated documentation
+        env:
+          REPOSITORY_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
+          python3 scripts/documentation_health.py --write
+          python3 scripts/documentation_health.py --check
+      - name: Package an allowlisted documentation patch
+        id: patch
+        shell: bash
+        run: |
+          set -euo pipefail
           git diff --check
-          if git status --porcelain | grep -q .; then
-            git status --short
-            echo "Generated documentation is stale. Run: python3 scripts/documentation_health.py --write"
-            exit 1
+          python3 - <<'PY'
+          import subprocess
+          import sys
+
+          excluded_parts = {".git", "node_modules", "vendor", ".venv", "dist", "build", "coverage"}
+          excluded_prefixes = (
+              "docs/reference/",
+              ".agents/",
+              ".github/prompts/",
+              ".github/chatmodes/",
+              "skills/",
+              "optional-skills/",
+          )
+
+          def is_generator_managed(path: str) -> bool:
+              parts = path.split("/")
+              maintained_document = (
+                  path.endswith((".md", ".mdx", ".html"))
+                  and not excluded_parts.intersection(parts)
+                  and not path.startswith(excluded_prefixes)
+                  and "/templates/" not in f"/{path}"
+              )
+              architecture_asset = (
+                  path.startswith("docs/architecture/generated/")
+                  or (
+                      path.startswith("docs/architecture/")
+                      and path.endswith(("-system-architecture.png", "-system-architecture.svg"))
+                  )
+              )
+              return maintained_document or architecture_asset
+          output = subprocess.check_output(
+              ["git", "status", "--porcelain=v1", "-z"], text=True
+          )
+          paths = []
+          for entry in output.split("\0"):
+              if not entry:
+                  continue
+              path = entry[3:]
+              if " -> " in path:
+                  path = path.split(" -> ", 1)[1]
+              paths.append(path)
+          rejected = [
+              path
+              for path in paths
+              if not is_generator_managed(path)
+          ]
+          if rejected:
+              print("Documentation generator changed non-allowlisted paths:", file=sys.stderr)
+              print("\n".join(rejected), file=sys.stderr)
+              raise SystemExit(1)
+          PY
+          git add -N --all
+          git diff --binary HEAD -- . > "$RUNNER_TEMP/documentation-health.patch"
+          if [[ -s "$RUNNER_TEMP/documentation-health.patch" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            if [[ "$GITHUB_EVENT_NAME" != "push" || "$GITHUB_REF_NAME" != "${{ github.event.repository.default_branch }}" ]]; then
+              git status --short
+              echo "Generated documentation is stale. Run: python3 scripts/documentation_health.py --write"
+              exit 1
+            fi
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Commit self-healed documentation
-        if: github.event_name == 'push'
-        run: |
-          if ! git status --porcelain | grep -q .; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "docs: refresh generated repository state [skip ci]"
-          git push
+      - name: Upload exact generated patch
+        if: steps.patch.outputs.changed == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: documentation-health-patch
+          path: ${{ runner.temp }}/documentation-health.patch
+          if-no-files-found: error
+          retention-days: 1
