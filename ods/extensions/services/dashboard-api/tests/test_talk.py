@@ -1,6 +1,9 @@
 """Tests for the ODS Talk mobile portal API."""
 
 import pytest
+import aiohttp
+from typing import cast
+from fastapi import Request
 
 
 @pytest.fixture()
@@ -441,7 +444,7 @@ def test_talk_message_stream_cancels_upstream_on_client_disconnect(talk_client, 
     from routers.talk import _stream_hermes_sse
 
     async def drive():
-        gen = _stream_hermes_sse("k", "hi", StubRequest())
+        gen = _stream_hermes_sse("k", "hi", cast(Request, StubRequest()))
         collected = []
         # Iterate the SSE generator; the consumer side is what FastAPI does.
         async for chunk in gen:
@@ -516,8 +519,8 @@ def test_hermes_bridge_pool_serializes_same_key_parallels_different_keys(monkeyp
     async def fake_open(session_key):
         create_counts[session_key] = create_counts.get(session_key, 0) + 1
         conn = hermes_bridge._HermesConnection(
-            http_session=FakeHTTP(),
-            ws=FakeWS(),
+            http_session=cast(aiohttp.ClientSession, FakeHTTP()),
+            ws=cast(aiohttp.ClientWebSocketResponse, FakeWS()),
             session_id=f"sid-{session_key}",
         )
         return conn
@@ -606,13 +609,13 @@ def test_hermes_bridge_slow_open_does_not_block_other_keys(monkeypatch):
             open_started.set()
             await release_open.wait()
             return hermes_bridge._HermesConnection(
-                http_session=FakeHTTP(), ws=FakeWS(), session_id=f"sid-{session_key}",
+                http_session=cast(aiohttp.ClientSession, FakeHTTP()), ws=cast(aiohttp.ClientWebSocketResponse, FakeWS()), session_id=f"sid-{session_key}",
             )
 
         monkeypatch.setattr("hermes_bridge._open_connection", slow_open)
 
         warm = hermes_bridge._HermesConnection(
-            http_session=FakeHTTP(), ws=FakeWS(), session_id="sid-warm",
+            http_session=cast(aiohttp.ClientSession, FakeHTTP()), ws=cast(aiohttp.ClientWebSocketResponse, FakeWS()), session_id="sid-warm",
         )
         hermes_bridge._CONNECTION_POOL["warm-key"] = warm
 
@@ -678,7 +681,7 @@ def test_hermes_bridge_transparent_retry_on_send_reset(monkeypatch):
         # First connection has a WS that fails on send; second is healthy.
         ws = DeadOnSendWS() if open_calls == 1 else LiveWS()
         return hermes_bridge._HermesConnection(
-            http_session=FakeHTTP(), ws=ws, session_id=f"sid-{open_calls}",
+            http_session=cast(aiohttp.ClientSession, FakeHTTP()), ws=cast(aiohttp.ClientWebSocketResponse, ws), session_id=f"sid-{open_calls}",
         )
 
     monkeypatch.setattr("hermes_bridge._open_connection", fake_open)
@@ -726,7 +729,7 @@ def test_hermes_bridge_does_not_retry_after_prompt_submit(monkeypatch):
         nonlocal open_calls
         open_calls += 1
         return hermes_bridge._HermesConnection(
-            http_session=FakeHTTP(), ws=FakeWS(), session_id=f"sid-{open_calls}",
+            http_session=cast(aiohttp.ClientSession, FakeHTTP()), ws=cast(aiohttp.ClientWebSocketResponse, FakeWS()), session_id=f"sid-{open_calls}",
         )
 
     monkeypatch.setattr("hermes_bridge._open_connection", fake_open)
@@ -770,8 +773,8 @@ def test_hermes_bridge_pool_evicts_and_recreates_on_dead_ws(monkeypatch):
         nonlocal create_count
         create_count += 1
         return hermes_bridge._HermesConnection(
-            http_session=FakeHTTP(),
-            ws=FakeWS(),
+            http_session=cast(aiohttp.ClientSession, FakeHTTP()),
+            ws=cast(aiohttp.ClientWebSocketResponse, FakeWS()),
             session_id=f"sid-{create_count}",
         )
 
@@ -789,7 +792,7 @@ def test_hermes_bridge_pool_evicts_and_recreates_on_dead_ws(monkeypatch):
         cached = hermes_bridge._CONNECTION_POOL["p1"]
 
         # Simulate Hermes restart: mark the WS as closed.
-        cached.ws.closed = True
+        monkeypatch.setattr(cached.ws, "closed", True)
 
         # Next call must NOT reuse the dead connection; must open a fresh one.
         async for ev in hermes_bridge.stream_prompt("p1", "hi again"):
@@ -826,12 +829,12 @@ def test_hermes_bridge_pool_sweeper_skips_active_connections(monkeypatch):
         async def close(self): pass
 
     async def fake_open(session_key):
-        conn = hermes_bridge._HermesConnection(http_session=FakeHTTP(), ws=FakeWS(), session_id="sid")
+        conn = hermes_bridge._HermesConnection(http_session=cast(aiohttp.ClientSession, FakeHTTP()), ws=cast(aiohttp.ClientWebSocketResponse, FakeWS()), session_id="sid")
         original_close = conn.aclose
         async def _tracked_close():
             closed_calls.append(session_key)
             await original_close()
-        conn.aclose = _tracked_close
+        monkeypatch.setattr(conn, "aclose", _tracked_close)
         return conn
 
     monkeypatch.setattr("hermes_bridge._open_connection", fake_open)
@@ -877,12 +880,12 @@ def test_hermes_bridge_pool_sweeper_evicts_idle_connections(monkeypatch):
 
     async def fake_open(session_key):
         ws = FakeWS()
-        conn = hermes_bridge._HermesConnection(http_session=FakeHTTP(), ws=ws, session_id="sid")
+        conn = hermes_bridge._HermesConnection(http_session=cast(aiohttp.ClientSession, FakeHTTP()), ws=cast(aiohttp.ClientWebSocketResponse, ws), session_id="sid")
         original_close = conn.aclose
         async def _tracked_close():
             closed_calls.append(session_key)
             await original_close()
-        conn.aclose = _tracked_close
+        monkeypatch.setattr(conn, "aclose", _tracked_close)
         return conn
 
     monkeypatch.setattr("hermes_bridge._open_connection", fake_open)

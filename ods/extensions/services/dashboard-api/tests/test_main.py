@@ -187,7 +187,7 @@ class TestPreflightDisk:
 
     def test_returns_disk_info(self, test_client, monkeypatch):
         from collections import namedtuple
-        DiskUsageTuple = namedtuple('usage', ['total', 'used', 'free'])
+        DiskUsageTuple = namedtuple('DiskUsageTuple', ['total', 'used', 'free'])
         monkeypatch.setattr("main.os.path.exists", lambda p: True)
         monkeypatch.setattr("main.shutil.disk_usage", lambda p: DiskUsageTuple(500 * 1024**3, 200 * 1024**3, 300 * 1024**3))
 

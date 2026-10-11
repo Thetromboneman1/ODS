@@ -16,7 +16,7 @@ import math
 import sys
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Optional
+from typing import Optional, Any
 
 
 #  Constants
@@ -410,7 +410,7 @@ def build_output(result: AssignmentResult) -> dict:
     services = {}
 
     for name, assignment in result.services.items():
-        entry = {
+        entry: dict[str, Any] = {
             "gpus": [g.uuid for g in assignment.gpus],
             "gpu_indices": [g.index for g in assignment.gpus],
         }

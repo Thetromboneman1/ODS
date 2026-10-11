@@ -753,7 +753,7 @@ def _build_env_sections(schema_keys: list[str]) -> list[dict[str, Any]]:
 
     sections: list[dict[str, Any]] = []
     section_index: dict[str, dict[str, Any]] = {}
-    current = {"id": "configuration", "title": "Configuration", "keys": []}
+    current: dict[str, Any] = {"id": "configuration", "title": "Configuration", "keys": []}
     sections.append(current)
     section_index[current["id"]] = current
 
@@ -1393,21 +1393,25 @@ async def _build_api_status() -> dict:
     llama-server queries run on the event loop — no serial blocking.
     """
     # Fan out: sync helpers in threads + async health checks simultaneously
-    (
-        gpu_info, model_info, bootstrap_info, uptime,
-        cpu_metrics, ram_metrics, disk_info,
-        service_statuses, loaded_model,
-    ) = await asyncio.gather(
-        asyncio.to_thread(get_gpu_info),
-        asyncio.to_thread(get_model_info),
-        asyncio.to_thread(get_bootstrap_status),
-        asyncio.to_thread(get_uptime),
-        asyncio.to_thread(get_cpu_metrics),
-        asyncio.to_thread(get_ram_metrics),
-        asyncio.to_thread(get_disk_usage),
-        _get_services(),
-        get_loaded_model(),
+    # Small heterogeneous groups retain each result's type (gather's fixed
+    # overloads do not cover nine arguments). All groups still run concurrently.
+    system_results, resource_results, service_results = await asyncio.gather(
+        asyncio.gather(
+            asyncio.to_thread(get_gpu_info),
+            asyncio.to_thread(get_model_info),
+            asyncio.to_thread(get_bootstrap_status),
+            asyncio.to_thread(get_uptime),
+        ),
+        asyncio.gather(
+            asyncio.to_thread(get_cpu_metrics),
+            asyncio.to_thread(get_ram_metrics),
+            asyncio.to_thread(get_disk_usage),
+        ),
+        asyncio.gather(_get_services(), get_loaded_model()),
     )
+    gpu_info, model_info, bootstrap_info, uptime = system_results
+    cpu_metrics, ram_metrics, disk_info = resource_results
+    service_statuses, loaded_model = service_results
 
     # Second fan-out: llama metrics + context size (need loaded_model)
     llama_metrics_data, context_size = await asyncio.gather(

@@ -62,7 +62,7 @@ def _write(tmp_path, name, data: bytes):
 
 def _nested_array(levels: int):
     """Build a value tuple for ``levels`` nested arrays wrapping a single u8."""
-    value = (U8, [0])
+    value: tuple[int, list] = (U8, [0])
     for _ in range(levels - 1):
         value = (ARR, [value])
     return value

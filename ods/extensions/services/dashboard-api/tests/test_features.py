@@ -216,7 +216,7 @@ class TestCalculateFeatureStatusGeneral:
         )
         feature = self._make_feature(vram_gb=8, services=[],
                                      enabled_all=["some-service"])
-        services = []
+        services: list[str] = []
 
         with patch("routers.features.GPU_BACKEND", "nvidia"):
             result = calculate_feature_status(feature, services, gpu)

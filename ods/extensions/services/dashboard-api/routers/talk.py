@@ -463,7 +463,7 @@ async def _stream_hermes_sse(session_key: str, text: str, request: Request):
        for a response nobody will ever read.
     """
     bridge_iter = hermes_bridge.stream_prompt(session_key, text).__aiter__()
-    pending: asyncio.Task | None = None
+    pending: asyncio.Future | None = None
     emit_done = True
 
     async def cancel_pending() -> None:
@@ -477,7 +477,7 @@ async def _stream_hermes_sse(session_key: str, text: str, request: Request):
     try:
         while True:
             if pending is None:
-                pending = asyncio.create_task(bridge_iter.__anext__())
+                pending = asyncio.ensure_future(bridge_iter.__anext__())
             try:
                 done_set, _ = await asyncio.wait({pending}, timeout=_KEEPALIVE_INTERVAL)
             except asyncio.CancelledError:

@@ -1,16 +1,28 @@
 """GPU detection and metrics for NVIDIA, AMD, and Apple Silicon GPUs."""
 
 import base64
+import binascii
 import json as _json
 import logging
 import os
 import platform
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 
 from models import GPUInfo, IndividualGPU
 from host_agent_client import AgentClientError, request_json as request_agent_json
+
+class _NvidiaMetrics(TypedDict):
+    name: str
+    mem_used: int
+    mem_total: int
+    util: int
+    temp: int
+    utilization_available: bool
+    temperature_available: bool
+    power_w: Optional[float]
+
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +177,7 @@ def get_gpu_info_nvidia() -> Optional[GPUInfo]:
         return None
 
     try:
-        gpus = []
+        gpus: list[_NvidiaMetrics] = []
         any_unified = False
         for line in lines:
             parts = [p.strip() for p in line.split(",")]
@@ -536,7 +548,7 @@ def decode_gpu_assignment() -> Optional[dict]:
         return None
     try:
         return _json.loads(base64.b64decode(b64.strip()).decode("utf-8"))
-    except (base64.binascii.Error, _json.JSONDecodeError, UnicodeDecodeError):
+    except (binascii.Error, _json.JSONDecodeError, UnicodeDecodeError):
         return None
 
 

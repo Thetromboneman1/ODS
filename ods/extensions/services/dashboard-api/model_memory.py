@@ -7,7 +7,7 @@ import re
 from typing import Any
 
 
-def _positive_number(value: object) -> float:
+def _positive_number(value: Any) -> float:
     try:
         number = float(value)
     except (TypeError, ValueError):

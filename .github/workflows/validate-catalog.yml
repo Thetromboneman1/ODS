@@ -2,17 +2,19 @@ name: Validate Extensions Catalog
 
 on:
   push:
-    branches: [main]
+    branches: [main, boneman/macos-omlx]
     paths:
       - 'ods/extensions/library/services/*/manifest.yaml'
       - 'ods/scripts/generate-extensions-catalog.py'
       - 'ods/config/extensions-catalog.json'
+      - '.github/workflows/validate-catalog.yml'
   pull_request:
-    branches: [main]
+    branches: [main, boneman/macos-omlx]
     paths:
       - 'ods/extensions/library/services/*/manifest.yaml'
       - 'ods/scripts/generate-extensions-catalog.py'
       - 'ods/config/extensions-catalog.json'
+      - '.github/workflows/validate-catalog.yml'
 
 permissions:
   contents: read

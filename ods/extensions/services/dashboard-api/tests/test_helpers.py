@@ -444,9 +444,8 @@ class TestCheckServiceHealth:
 
     @pytest.mark.asyncio
     async def test_not_deployed_on_dns_failure(self, monkeypatch):
-        from collections import namedtuple
-        ConnKey = namedtuple('ConnectionKey', ['host', 'port', 'is_ssl', 'ssl', 'proxy', 'proxy_auth', 'proxy_headers_hash'])
-        conn_key = ConnKey('test-svc', 8080, False, None, None, None, None)
+        from aiohttp.client_reqrep import ConnectionKey
+        conn_key = ConnectionKey('test-svc', 8080, False, False, None, None, None)
         os_err = OSError("Name or service not known")
         os_err.strerror = "Name or service not known"
         exc = aiohttp.ClientConnectorError(conn_key, os_err)

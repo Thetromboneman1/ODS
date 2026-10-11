@@ -763,8 +763,8 @@ async def get_all_services() -> list[ServiceStatus]:
         if llama_index is not None and reconciled[llama_index].status != "healthy":
             try:
                 host_status = await request_agent_json("GET", "/v1/llm/status", timeout=6)
-                health = host_status.get("health")
-                if isinstance(health, dict) and str(health.get("status") or "").casefold() == "ok":
+                host_health = host_status.get("health")
+                if isinstance(host_health, dict) and str(host_health.get("status") or "").casefold() == "ok":
                     reconciled[llama_index] = reconciled[llama_index].model_copy(
                         update={"status": "healthy"},
                     )
@@ -1004,7 +1004,7 @@ def get_uptime() -> int:
                     return int(_time.time()) - int(match.group(1))
         elif _system == "Windows":
             import ctypes
-            return ctypes.windll.kernel32.GetTickCount64() // 1000
+            return getattr(ctypes, "windll").kernel32.GetTickCount64() // 1000
     except (OSError, subprocess.SubprocessError, ValueError, IndexError, AttributeError) as e:
         logger.debug("get_uptime failed on %s: %s", _system, e)
     return 0
@@ -1012,7 +1012,7 @@ def get_uptime() -> int:
 
 def _get_cpu_metrics_linux() -> dict:
     """Get CPU usage from /proc/stat (Linux only)."""
-    result = {"percent": 0, "temp_c": None}
+    result: dict[str, float | None] = {"percent": 0, "temp_c": None}
     try:
         with open("/proc/stat") as f:
             line = f.readline()
@@ -1021,10 +1021,10 @@ def _get_cpu_metrics_linux() -> dict:
             idle = int(parts[4]) + int(parts[5])
             total = sum(int(p) for p in parts[1:8])
             if not hasattr(get_cpu_metrics, "_prev"):
-                get_cpu_metrics._prev = (idle, total)
-            prev_idle, prev_total = get_cpu_metrics._prev
+                setattr(get_cpu_metrics, "_prev", (idle, total))
+            prev_idle, prev_total = getattr(get_cpu_metrics, "_prev")
             d_idle, d_total = idle - prev_idle, total - prev_total
-            get_cpu_metrics._prev = (idle, total)
+            setattr(get_cpu_metrics, "_prev", (idle, total))
             if d_total > 0:
                 result["percent"] = round((1 - d_idle / d_total) * 100, 1)
     except OSError as e:
@@ -1054,7 +1054,7 @@ def _get_cpu_metrics_linux() -> dict:
 
 def _get_cpu_metrics_darwin() -> dict:
     """Get CPU usage on macOS via host_processor_info."""
-    result = {"percent": 0, "temp_c": None}
+    result: dict[str, float | None] = {"percent": 0, "temp_c": None}
     try:
         import subprocess
         out = subprocess.run(
@@ -1083,7 +1083,7 @@ def get_cpu_metrics() -> dict:
 
 def _get_ram_metrics_linux() -> dict:
     """Get RAM usage from /proc/meminfo (Linux only)."""
-    result = {"used_gb": 0, "total_gb": 0, "percent": 0}
+    result: dict[str, float] = {"used_gb": 0, "total_gb": 0, "percent": 0}
     try:
         meminfo = {}
         with open("/proc/meminfo") as f:
@@ -1116,7 +1116,7 @@ def _get_ram_metrics_linux() -> dict:
 
 def _get_ram_metrics_sysctl() -> dict:
     """Get RAM usage on macOS via sysctl."""
-    result = {"used_gb": 0, "total_gb": 0, "percent": 0}
+    result: dict[str, float] = {"used_gb": 0, "total_gb": 0, "percent": 0}
     try:
         import subprocess
         out = subprocess.run(

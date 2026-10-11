@@ -457,7 +457,7 @@ def resolve_workflow_dir() -> Path:
 
 WORKFLOW_DIR = resolve_workflow_dir()
 WORKFLOW_CATALOG_FILE = WORKFLOW_DIR / "catalog.json"
-DEFAULT_WORKFLOW_CATALOG = {"workflows": [], "categories": {}}
+DEFAULT_WORKFLOW_CATALOG: dict[str, list | dict] = {"workflows": [], "categories": {}}
 
 def _default_n8n_url() -> str:
     cfg = SERVICES.get("n8n", {})

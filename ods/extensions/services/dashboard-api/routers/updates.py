@@ -7,7 +7,7 @@ import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -32,7 +32,12 @@ _GITHUB_RELEASES_API = f"https://api.github.com/repos/{_GITHUB_REPOSITORY}/relea
 _GITHUB_RELEASES_PAGE = f"https://github.com/{_GITHUB_REPOSITORY}/releases"
 _GITHUB_HEADERS = {"Accept": "application/vnd.github.v3+json"}
 _VERSION_CACHE_TTL = 300.0
-_version_cache: dict[str, object] = {"expires_at": 0.0, "payload": None}
+class _VersionCache(TypedDict):
+    expires_at: float
+    payload: Optional[dict]
+
+
+_version_cache: _VersionCache = {"expires_at": 0.0, "payload": None}
 _version_refresh_task: Optional[asyncio.Task] = None
 
 
@@ -128,7 +133,7 @@ def _get_cached_release_payload(allow_stale: bool = False) -> Optional[dict]:
     if payload is None:
         return None
     if allow_stale or time.monotonic() < float(_version_cache.get("expires_at", 0.0)):
-        return payload  # type: ignore[return-value]
+        return payload
     return None
 
 

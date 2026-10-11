@@ -1,5 +1,6 @@
 """Tests for ods-host-agent.py — _parse_mem_value and _iso_now."""
 
+from conftest import record_call as _record_call
 import hashlib
 import importlib.util
 import io
@@ -143,7 +144,7 @@ def host_agent_wire_client(monkeypatch):
 class TestHostAgentShutdown:
 
     def test_signal_shutdown_runs_from_helper_thread(self, monkeypatch):
-        calls = []
+        calls: list[str | tuple] = []
 
         class FakeServer:
             def shutdown(self):
@@ -360,7 +361,7 @@ class TestMacosDirectBindBridgeCollision:
         assert "continuing" in caplog.text
 
     def test_host_agent_bridge_uses_normalized_bind_before_server(self, monkeypatch):
-        events = []
+        events: list[tuple] = []
         sentinel_server = object()
 
         def fake_disable(env, bind_addr, label):
@@ -1991,7 +1992,7 @@ class _FakeHandler:
         self.wfile = io.BytesIO()
         self.client_address = ("127.0.0.1", 12345)
         self.response_code = None
-        self.response_headers = []
+        self.response_headers: list[tuple[str, str]] = []
 
     def send_response(self, code):
         self.response_code = code
@@ -2591,15 +2592,15 @@ class TestTailscaleStatus:
 
     def _handler(self):
         handler = _FakeHandler(b"")
-        handler._write_tailscale_status_payload = types.MethodType(
+        setattr(handler, "_write_tailscale_status_payload", types.MethodType(
             _mod.AgentHandler._write_tailscale_status_payload, handler
-        )
-        handler._find_native_tailscale_cli = types.MethodType(
+        ))
+        setattr(handler, "_find_native_tailscale_cli", types.MethodType(
             _mod.AgentHandler._find_native_tailscale_cli, handler
-        )
-        handler._try_native_tailscale_status = types.MethodType(
+        ))
+        setattr(handler, "_try_native_tailscale_status", types.MethodType(
             _mod.AgentHandler._try_native_tailscale_status, handler
-        )
+        ))
         return handler
 
     def test_falls_back_to_native_tailscale_when_container_absent(self, monkeypatch):
@@ -3019,7 +3020,7 @@ class TestModelActivationOwnership:
 
         monkeypatch.setattr(_mod, "AGENT_API_KEY", "test-key")
         owner = _FakeHandler(json.dumps({"model_id": "target-a"}).encode("utf-8"))
-        owner._do_model_activate = types.MethodType(blocking_activate, owner)
+        setattr(owner, "_do_model_activate", types.MethodType(blocking_activate, owner))
         owner_thread = _mod.threading.Thread(
             target=_mod.AgentHandler._handle_model_activate,
             args=(owner,),
@@ -3049,7 +3050,7 @@ class TestModelActivationOwnership:
 
         monkeypatch.setattr(_mod, "AGENT_API_KEY", "test-key")
         handler = _FakeHandler(json.dumps({"model_id": "target-a"}).encode("utf-8"))
-        handler._do_model_activate = types.MethodType(failed_activate, handler)
+        setattr(handler, "_do_model_activate", types.MethodType(failed_activate, handler))
 
         with pytest.raises(RuntimeError, match="activation failed"):
             _mod.AgentHandler._handle_model_activate(handler)
@@ -3207,10 +3208,10 @@ class TestModelActivationModeAndMacosBridge:
         monkeypatch.setattr(_mod, "_configure_macos_llm_bridge", unexpected_mutation)
         monkeypatch.setattr(_mod.subprocess, "run", unexpected_mutation)
         handler = _FakeHandler(json.dumps({"model_id": "local-target"}).encode("utf-8"))
-        handler._do_model_activate = types.MethodType(
+        setattr(handler, "_do_model_activate", types.MethodType(
             _mod.AgentHandler._do_model_activate,
             handler,
-        )
+        ))
 
         _mod.AgentHandler._handle_model_activate(handler)
 
@@ -3380,7 +3381,7 @@ class TestModelActivationModeAndMacosBridge:
         )
         llama_bin = bin_dir / "llama-server"
         llama_bin.write_bytes(b"binary")
-        events = []
+        events: list[tuple] = []
 
         def record_preflight(path):
             events.append(("bridge-preflight", _mod.load_env(path)["BIND_ADDRESS"]))
@@ -4409,10 +4410,10 @@ class TestEnableRetry:
 
         monkeypatch.setattr(_mod.subprocess, "run", fake_run)
 
-        compose_calls = []
+        compose_calls: list[tuple[str, str]] = []
         monkeypatch.setattr(
             _mod, "docker_compose_action",
-            lambda sid, act: (compose_calls.append((sid, act)) or (True, "")),
+            lambda sid, act: (_record_call(compose_calls, (sid, act), (True, ""))),
         )
 
         handler = _FakeHandler(self._body("fakesvc"))
@@ -4684,7 +4685,7 @@ class TestInstallStatePollBehavior:
                 if not responses:
                     return _CP(0, "running|", "")
                 resp = responses.pop(0)
-                if isinstance(resp, type) and issubclass(resp, BaseException):
+                if isinstance(resp, type) and issubclass(resp, subprocess.TimeoutExpired):
                     raise resp(cmd=argv, timeout=5)
                 if isinstance(resp, BaseException):
                     raise resp

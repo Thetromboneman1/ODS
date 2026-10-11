@@ -1,5 +1,6 @@
 """Tests for AMD model activation helpers in ods-host-agent.py."""
 
+from conftest import record_call as _record_call
 import base64
 import hashlib
 import importlib.util
@@ -81,15 +82,17 @@ def test_host_agent_backlog_handles_dashboard_poll_bursts():
 
 
 def test_host_agent_keeps_gets_alive_and_closes_posts(monkeypatch):
-    class _CountingServer(_mod.ThreadedHTTPServer):
-        accepted_connections = 0
+    server = _mod.ThreadedHTTPServer(("127.0.0.1", 0), _mod.AgentHandler)
+    original_get_request = server.get_request
+    accepted_connections = 0
 
-        def get_request(self):
-            request = super().get_request()
-            self.accepted_connections += 1
-            return request
+    def counted_get_request():
+        nonlocal accepted_connections
+        request = original_get_request()
+        accepted_connections += 1
+        return request
 
-    server = _CountingServer(("127.0.0.1", 0), _mod.AgentHandler)
+    monkeypatch.setattr(server, "get_request", counted_get_request)
     server_thread = threading.Thread(target=server.serve_forever, daemon=True)
     server_thread.start()
     connection = http.client.HTTPConnection("127.0.0.1", server.server_port, timeout=5)
@@ -100,7 +103,7 @@ def test_host_agent_keeps_gets_alive_and_closes_posts(monkeypatch):
             response = connection.getresponse()
             assert response.status == 200
             assert json.loads(response.read()) == {"status": "ok", "version": _mod.VERSION}
-        assert server.accepted_connections == 1
+        assert accepted_connections == 1
 
         connection.request(
             "POST",
@@ -122,7 +125,7 @@ def test_host_agent_keeps_gets_alive_and_closes_posts(monkeypatch):
         response = connection.getresponse()
         assert response.status == 200
         assert json.loads(response.read()) == {"status": "ok", "version": _mod.VERSION}
-        assert server.accepted_connections == 2
+        assert accepted_connections == 2
     finally:
         connection.close()
         server.shutdown()
@@ -780,7 +783,7 @@ class TestLemonadeCompletionReady:
         assert proof["verifiedAt"].endswith("+00:00")
 
     def test_readiness_rejects_runtime_context_below_requested(self, monkeypatch):
-        completion_calls = []
+        completion_calls: list[bool] = []
 
         def fake_run(cmd, **_kwargs):
             url = next((str(part) for part in cmd if str(part).startswith("http")), "")
@@ -798,7 +801,7 @@ class TestLemonadeCompletionReady:
         monkeypatch.setattr(
             _mod,
             "_chat_completion_ready",
-            lambda *_a, **_k: completion_calls.append(True) or True,
+            lambda *_a, **_k: _record_call(completion_calls, True, True),
         )
         proof = _mod._wait_for_model_readiness(
             {
@@ -1042,12 +1045,12 @@ class TestOpenCodeModelRoute:
         }) is False
 
     def test_windows_active_runtime_is_restarted_and_proved(self, monkeypatch):
-        actions = []
+        actions: list[str] = []
         monkeypatch.setattr(_mod.platform, "system", lambda: "Windows")
         monkeypatch.setattr(
             _mod,
             "_run_windows_opencode_control",
-            lambda action: actions.append(action) or True,
+            lambda action: _record_call(actions, action, True),
         )
         monkeypatch.setattr(_mod, "_wait_for_opencode_health", lambda: actions.append("health"))
 
@@ -1257,12 +1260,12 @@ class TestDownstreamRouteVerification:
         )
 
     def test_litellm_probe_uses_default_route_and_master_key(self, monkeypatch):
-        calls = []
+        calls: list[tuple] = []
         monkeypatch.delenv("ODS_HOST_INSTALL_DIR", raising=False)
         monkeypatch.setattr(
             _mod,
             "_chat_completion_ready",
-            lambda *args: calls.append(args) or True,
+            lambda *args: _record_call(calls, args, True),
         )
 
         _mod._verify_litellm_route({"LITELLM_PORT": "4100", "LITELLM_KEY": "secret"})
@@ -1820,7 +1823,7 @@ class TestLaunchNativeLlamaServer:
             "BIND_ADDRESS": "0.0.0.0",
             "ODS_MACOS_HOST_GATEWAY": "192.168.106.1",
         }
-        events = []
+        events: list[tuple] = []
 
         class _FakeProc:
             pid = 4321
@@ -2303,9 +2306,7 @@ class TestModelActivateRequest:
             "context_length": 16384,
             "tier": "sh_compact",
         })
-        handler._do_model_activate = (
-            lambda model_id, **kwargs: calls.append((model_id, kwargs))
-        )
+        setattr(handler, "_do_model_activate", lambda model_id, **kwargs: calls.append((model_id, kwargs)))
 
         _mod.AgentHandler._handle_model_activate(handler)
 
@@ -2320,7 +2321,7 @@ class TestModelActivateRequest:
         monkeypatch.setattr(_mod, "_begin_model_activation", lambda _model: (True, None))
         monkeypatch.setattr(_mod, "_end_model_activation", lambda: None)
         handler = _ResponseHandler(request_body={"model_id": "  target-model  "})
-        handler._do_model_activate = lambda model_id, **_kwargs: calls.append(model_id)
+        setattr(handler, "_do_model_activate", lambda model_id, **_kwargs: calls.append(model_id))
 
         _mod.AgentHandler._handle_model_activate(handler)
 
@@ -4475,12 +4476,12 @@ class TestModelActivateRollback:
         monkeypatch.setattr(
             _mod,
             "_restart_existing_container",
-            lambda name, _state=None: events.append(f"restart:{name}") or name == "ods-litellm",
+            lambda name, _state=None: _record_call(events, f"restart:{name}", name == "ods-litellm"),
         )
         monkeypatch.setattr(
             _mod,
             "_restore_container_state",
-            lambda name, _state, recreate=False: events.append(f"restore:{name}") or True,
+            lambda name, _state, recreate=False: _record_call(events, f"restore:{name}", True),
         )
         monkeypatch.setattr(
             _mod,
@@ -5665,7 +5666,7 @@ class TestModelActivateRollback:
         install_dir, _env_path, _env_text, _models_ini, _ini_text, _yaml, _yaml_text = (
             _write_model_activation_fixture(tmp_path)
         )
-        recreates = []
+        recreates: list[list[str]] = []
         verified_models = []
 
         monkeypatch.setattr(_mod, "INSTALL_DIR", install_dir)
@@ -5682,7 +5683,7 @@ class TestModelActivateRollback:
         monkeypatch.setattr(
             _mod,
             "docker_compose_recreate",
-            lambda services: (recreates.append(list(services)) or True, ""),
+            lambda services: (_record_call(recreates, list(services), True), ""),
         )
         monkeypatch.setattr(
             _mod,
@@ -6174,7 +6175,7 @@ class TestModelActivateRollback:
                 "ods-perplexica",
             )
         }
-        docker_calls = []
+        docker_calls: list[list[str]] = []
         monkeypatch.setattr(_mod, "INSTALL_DIR", install_dir)
         monkeypatch.setattr(_mod, "_capture_container_state", lambda name: states[name])
         monkeypatch.setattr(_mod, "_compose_restart_llama_server", lambda _env: None)
@@ -6185,8 +6186,7 @@ class TestModelActivateRollback:
             _mod.subprocess,
             "run",
             lambda cmd, **_kwargs: (
-                docker_calls.append(cmd)
-                or subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+                _record_call(docker_calls, cmd, subprocess.CompletedProcess(cmd, 0, stdout="", stderr=""))
             ),
         )
         handler = _ResponseHandler()
@@ -6575,13 +6575,13 @@ class TestModelActivateRollback:
         monkeypatch.setattr(
             _mod,
             "_restart_existing_container",
-            lambda name, _state=None: events.append(f"restart:{name}") or name == "ods-litellm",
+            lambda name, _state=None: _record_call(events, f"restart:{name}", name == "ods-litellm"),
         )
         monkeypatch.setattr(_mod, "_verify_litellm_route", lambda _env: events.append("litellm-ready"))
         monkeypatch.setattr(
             _mod,
             "_restart_managed_opencode",
-            lambda _state=None: events.append("opencode-restart") or True,
+            lambda _state=None: _record_call(events, "opencode-restart", True),
         )
         handler = _ResponseHandler()
 

@@ -2,14 +2,16 @@ name: Python Type Check
 
 on:
   push:
-    branches: [main]
+    branches: [main, boneman/macos-omlx]
     paths:
       - "ods/**/*.py"
+      - "ods/extensions/services/**/requirements*.txt"
       - ".github/workflows/type-check-python.yml"
   pull_request:
-    branches: [main]
+    branches: [main, boneman/macos-omlx]
     paths:
       - "ods/**/*.py"
+      - "ods/extensions/services/**/requirements*.txt"
       - ".github/workflows/type-check-python.yml"
 
 permissions:
@@ -17,8 +19,24 @@ permissions:
 
 jobs:
   mypy:
-    name: Type check with mypy
+    name: Type check ${{ matrix.service }} with mypy
     runs-on: ubuntu-latest
+    strategy:
+      # Report every service's result even when another service has type errors.
+      fail-fast: false
+      matrix:
+        include:
+          - service: dashboard-api
+            directory: ods/extensions/services/dashboard-api
+          - service: token-spy
+            directory: ods/extensions/services/token-spy
+          - service: privacy-shield
+            directory: ods/extensions/services/privacy-shield
+          - service: scripts
+            directory: ods/scripts
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
@@ -30,29 +48,14 @@ jobs:
       - name: Install mypy
         run: pip install mypy
 
-      - name: Type check dashboard-api
-        continue-on-error: true
-        working-directory: ods/extensions/services/dashboard-api
-        run: |
-          pip install -r requirements.txt
-          mypy . --ignore-missing-imports --no-strict-optional --check-untyped-defs
+      - name: Install service dependencies
+        if: matrix.service != 'scripts'
+        run: pip install -r requirements.txt
 
-      - name: Type check token-spy
-        continue-on-error: true
-        working-directory: ods/extensions/services/token-spy
-        run: |
-          pip install -r requirements.txt
-          mypy . --ignore-missing-imports --no-strict-optional --check-untyped-defs
-
-      - name: Type check privacy-shield
-        continue-on-error: true
-        working-directory: ods/extensions/services/privacy-shield
-        run: |
-          pip install -r requirements.txt
-          mypy . --ignore-missing-imports --no-strict-optional --check-untyped-defs
+      - name: Type check service
+        if: matrix.service != 'scripts'
+        run: mypy . --ignore-missing-imports --no-strict-optional --check-untyped-defs
 
       - name: Type check scripts
-        continue-on-error: true
-        working-directory: ods/scripts
-        run: |
-          mypy *.py --ignore-missing-imports --no-strict-optional --check-untyped-defs
+        if: matrix.service == 'scripts'
+        run: mypy *.py --ignore-missing-imports --no-strict-optional --check-untyped-defs

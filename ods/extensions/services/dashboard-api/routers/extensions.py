@@ -15,7 +15,7 @@ import time
 from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TypedDict
 
 import yaml
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -550,7 +550,7 @@ def _scan_compose_content(
         # Block Docker Compose internal label spoofing
         labels = svc_def.get("labels", [])
         if isinstance(labels, dict):
-            label_keys = labels.keys()
+            label_keys = list(labels.keys())
         elif isinstance(labels, list):
             label_keys = [lbl.split("=", 1)[0] for lbl in labels if isinstance(lbl, str)]
         else:
@@ -975,7 +975,12 @@ def _call_agent_compose_rename(action: str, service_id: str) -> bool:
 
 
 _agent_cache_lock = threading.Lock()
-_agent_cache = {"available": False, "checked_at": 0.0}
+class _AgentHealthCache(TypedDict):
+    available: bool
+    checked_at: float
+
+
+_agent_cache: _AgentHealthCache = {"available": False, "checked_at": 0.0}
 
 
 def _check_agent_health() -> bool:
@@ -991,7 +996,7 @@ def _check_agent_health() -> bool:
     except AgentClientError:
         available = False
     with _agent_cache_lock:
-        _agent_cache.update(available=available, checked_at=time.monotonic())
+        _agent_cache.update({"available": available, "checked_at": time.monotonic()})
     return available
 
 
@@ -1008,7 +1013,7 @@ def _exclusive_file_lock(lock_path: Path):
                 lockfile.write(b"\0")
                 lockfile.flush()
             lockfile.seek(0)
-            msvcrt.locking(lockfile.fileno(), msvcrt.LK_LOCK, 1)
+            getattr(msvcrt, "locking")(lockfile.fileno(), getattr(msvcrt, "LK_LOCK"), 1)
         yield
     finally:
         try:
@@ -1016,7 +1021,7 @@ def _exclusive_file_lock(lock_path: Path):
                 fcntl.flock(lockfile, fcntl.LOCK_UN)
             elif msvcrt is not None:
                 lockfile.seek(0)
-                msvcrt.locking(lockfile.fileno(), msvcrt.LK_UNLCK, 1)
+                getattr(msvcrt, "locking")(lockfile.fileno(), getattr(msvcrt, "LK_UNLCK"), 1)
         finally:
             lockfile.close()
 

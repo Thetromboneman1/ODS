@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from conftest import record_call as _record_call
 import importlib
 import asyncio
 import json
@@ -2052,14 +2053,11 @@ def test_load_model_reconfigures_active_model_when_context_changes(
         model["gguf_file"],
         f"extra.{model['gguf_file']}",
     )
-    calls = []
+    calls: list[tuple] = []
     monkeypatch.setattr(
         models_router,
         "_call_agent_model",
-        lambda path, body, timeout=30, **kwargs: calls.append(
-            (path, body, timeout, kwargs)
-        )
-        or {"status": "activated", "context_length": body.get("context_length")},
+        lambda path, body, timeout=30, **kwargs: _record_call(calls, (path, body, timeout, kwargs), {"status": "activated", "context_length": body.get("context_length")}),
     )
 
     resp = test_client.post(
@@ -2102,14 +2100,11 @@ def test_load_model_allows_advanced_context_override_but_rejects_invalid_range(
     _write_model_library(install_dir, [model])
     (data_dir / "models" / model["gguf_file"]).write_text("model", encoding="utf-8")
     (install_dir / ".env").write_text("ODS_MODE=local\n", encoding="utf-8")
-    calls = []
+    calls: list[tuple] = []
     monkeypatch.setattr(
         models_router,
         "_call_agent_model",
-        lambda path, body, timeout=30, **kwargs: calls.append(
-            (path, body, timeout, kwargs)
-        )
-        or {"status": "activated", "context_length": body["context_length"]},
+        lambda path, body, timeout=30, **kwargs: _record_call(calls, (path, body, timeout, kwargs), {"status": "activated", "context_length": body["context_length"]}),
     )
 
     invalid_type = test_client.post(
@@ -2180,12 +2175,11 @@ def test_load_model_reconciles_matching_runtime_without_completion_receipt(
         lambda: "extra.Qwen3.5-9B-Q4_K_M.gguf",
     )
     monkeypatch.setattr(models_router, "_loaded_model_backend_ready_sync", lambda _loaded: True)
-    calls = []
+    calls: list[tuple] = []
     monkeypatch.setattr(
         models_router,
         "_call_agent_model",
-        lambda path, body, timeout=30, **_kwargs: calls.append((path, body, timeout))
-        or {"status": "activated"},
+        lambda path, body, timeout=30, **_kwargs: _record_call(calls, (path, body, timeout), {"status": "activated"}),
     )
 
     resp = test_client.post("/api/models/qwen3.5-9b-q4/load", headers=test_client.auth_headers)

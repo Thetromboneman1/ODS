@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
@@ -30,7 +31,7 @@ def test_host_agent_diagnostics_success(test_client, monkeypatch):
     """Host-agent diagnostics reports URL, gateway, auth, and probe state."""
     import main as main_mod
 
-    captured = {}
+    captured: dict[str, Any] = {}
 
     def fake_request_json(method, path, *, timeout):
         captured.update(method=method, path=path, timeout=timeout)

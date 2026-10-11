@@ -254,20 +254,22 @@ class TestClusterStatusRefresh:
         import asyncio as _asyncio
         cs = ClusterStatus()
 
+        processes: list[MagicMock] = []
+
         async def _fake_subprocess(*args, **kwargs):
             proc = MagicMock()
             proc.communicate = AsyncMock(side_effect=_asyncio.TimeoutError())
             proc.kill = MagicMock()
             proc.wait = AsyncMock()
-            _fake_subprocess.proc = proc
+            processes.append(proc)
             return proc
 
         with patch("asyncio.create_subprocess_exec", side_effect=_fake_subprocess):
             await cs.refresh()
 
         assert cs.total_gpus == 0
-        _fake_subprocess.proc.kill.assert_called_once()
-        _fake_subprocess.proc.wait.assert_awaited_once()
+        processes[0].kill.assert_called_once()
+        processes[0].wait.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_refresh_os_error(self):

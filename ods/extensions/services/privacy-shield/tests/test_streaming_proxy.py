@@ -31,6 +31,7 @@ import re
 import sys
 import threading
 from pathlib import Path
+from typing import TypedDict
 
 import httpx
 import pytest
@@ -284,6 +285,12 @@ class TestBinaryPassthrough:
 
 # ── 4. WebSocket upgrade lane ───────────────────────────────────────────────
 
+class WebSocketServerState(TypedDict, total=False):
+    loop: asyncio.AbstractEventLoop
+    stop: asyncio.Event
+    port: int
+
+
 class TestWebSocketLane:
     def test_websocket_route_registered(self):
         ws_routes = [
@@ -299,7 +306,7 @@ class TestWebSocketLane:
             pytest.skip("websockets lib unavailable; route-registered test covers lane")
 
         ready = threading.Event()
-        box = {}
+        box: WebSocketServerState = {}
 
         def run_server():
             loop = asyncio.new_event_loop()
@@ -314,7 +321,7 @@ class TestWebSocketLane:
 
             async def main():
                 srv = await websockets.serve(echo, "127.0.0.1", 0)
-                box["port"] = srv.sockets[0].getsockname()[1]
+                box["port"] = next(iter(srv.sockets)).getsockname()[1]
                 ready.set()
                 await stop.wait()
                 srv.close()
@@ -422,7 +429,7 @@ class TestWebSocketAuth:
             pytest.skip("websockets lib unavailable")
 
         ready = threading.Event()
-        box = {}
+        box: WebSocketServerState = {}
 
         def run_server():
             loop = asyncio.new_event_loop()
@@ -437,7 +444,7 @@ class TestWebSocketAuth:
 
             async def main():
                 srv = await websockets.serve(echo, "127.0.0.1", 0)
-                box["port"] = srv.sockets[0].getsockname()[1]
+                box["port"] = next(iter(srv.sockets)).getsockname()[1]
                 ready.set()
                 await stop.wait()
                 srv.close()

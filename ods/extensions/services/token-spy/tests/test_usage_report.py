@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-import importlib
+import importlib.util
+from unittest.mock import MagicMock
 
 import pytest
 from datetime import date, datetime, timedelta, timezone
@@ -88,6 +89,48 @@ def test_query_report_aggregates_real_usage_rows(tmp_path, monkeypatch):
     assert report["daily"][1]["requests"] == 1
     assert [row["model"] for row in report["models"]] == ["gpt-4o", "qwen3.5-9b"]
     assert {row["service"] for row in report["services"]} == {"Open WebUI", "llama-server"}
+
+
+def test_postgres_report_aggregates_each_group_without_key_collisions(monkeypatch):
+    pytest.importorskip("psycopg2")
+    spec = importlib.util.spec_from_file_location(
+        f"token_spy_postgres_report_{uuid4().hex}", TOKEN_SPY_DIR / "db_postgres.py",
+    )
+    assert spec is not None and spec.loader is not None
+    db = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(db)
+    rows = [
+        {"timestamp": datetime(2026, 5, 1, 10), "agent": "web", "model": "paid",
+         "provider_name": "cloud", "input_tokens": 100, "output_tokens": 20,
+         "cache_read_tokens": 5, "cache_write_tokens": 0, "estimated_cost_usd": 0.01},
+        {"timestamp": datetime(2026, 5, 1, 11), "agent": "web", "model": "paid",
+         "provider_name": "cloud", "input_tokens": 200, "output_tokens": 40,
+         "cache_read_tokens": 10, "cache_write_tokens": 0, "estimated_cost_usd": 0.02},
+        {"timestamp": datetime(2026, 5, 2, 12), "agent": "local", "model": "free",
+         "provider_name": "local", "input_tokens": 30, "output_tokens": 6,
+         "cache_read_tokens": 0, "cache_write_tokens": 0, "estimated_cost_usd": 0},
+    ]
+    connection = MagicMock()
+    connection.cursor.return_value.__enter__.return_value.fetchall.return_value = rows
+    returned_connections: list[MagicMock] = []
+    monkeypatch.setattr(db, "_tenant_id", uuid4())
+    monkeypatch.setattr(db, "_get_conn", lambda: connection)
+    monkeypatch.setattr(db, "_put_conn", returned_connections.append)
+
+    report = db.query_report("2026-05-01", "2026-05-02")
+
+    assert returned_connections == [connection]
+    assert report["summary"]["requests"] == 3
+    assert report["summary"]["spend_usd"] == 0.03
+    assert report["summary"]["total_tokens"] == 411
+    assert [day["requests"] for day in report["daily"]] == [2, 1]
+    for name, key in (("models", "model"), ("services", "service"), ("sources", "source")):
+        groups = {row[key]: row for row in report[name]}
+        paid = groups[{"models": "paid", "services": "web", "sources": "priced_from_tokens"}[name]]
+        free = groups[{"models": "free", "services": "local", "sources": "local_zero_cost"}[name]]
+        assert paid["requests"] == 2 and paid["cost_usd"] == 0.03
+        assert paid["input_tokens"] == 300 and paid["cache_read_tokens"] == 15
+        assert free["requests"] == 1 and free["cost_usd"] == 0
 
 
 def test_query_report_degrades_old_zero_cost_rows_to_untracked(tmp_path, monkeypatch):
