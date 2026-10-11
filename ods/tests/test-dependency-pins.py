@@ -189,6 +189,111 @@ def test_extension_library_sha_tags_are_rejected() -> None:
     )
 
 
+def _write_synthetic_open_interpreter_dockerfile(root: Path, requirements: str) -> None:
+    dockerfile = root / "extensions" / "library" / "services" / "open-interpreter" / "Dockerfile"
+    dockerfile.parent.mkdir(parents=True)
+    dockerfile.write_text(
+        f"FROM python:3.12-slim\nRUN pip install --no-cache-dir {requirements}\n",
+        encoding="utf-8",
+    )
+
+
+def test_open_interpreter_excludes_compromised_litellm_versions() -> None:
+    module = load_module()
+    synthetic_versions = {"1.82.6", "1.82.7", "1.82.8", "1.82.9"}
+    requirement = "litellm!=1.82.7,!=1.82.8"
+    excluded = module._excluded_versions(requirement, "litellm")
+    assert synthetic_versions - excluded == {"1.82.6", "1.82.9"}
+
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_synthetic_open_interpreter_dockerfile(
+            root, f"{' '.join(sorted(module.OPEN_INTERPRETER_REQUIREMENTS))} {requirement}"
+        )
+        assert module.validate_open_interpreter_litellm_guard(root) == []
+
+
+def test_open_interpreter_rejects_vulnerable_or_split_constraints() -> None:
+    module = load_module()
+    direct_requirements = " ".join(sorted(module.OPEN_INTERPRETER_REQUIREMENTS))
+
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_synthetic_open_interpreter_dockerfile(root, direct_requirements)
+        errors = module.validate_open_interpreter_litellm_guard(root)
+        assert any("1.82.7" in error and "1.82.8" in error for error in errors)
+
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_synthetic_open_interpreter_dockerfile(
+            root,
+            f"{direct_requirements}\nRUN pip install litellm!=1.82.7,!=1.82.8",
+        )
+        errors = module.validate_open_interpreter_litellm_guard(root)
+        assert any("expected exactly one pip install transaction" in error for error in errors)
+
+    override_commands = (
+        "python3 -m pip",
+        "/usr/local/bin/pip",
+        "pip3.12",
+        "/usr/local/bin/python3.12 -m pip",
+        "pip --disable-pip-version-check",
+        "python3 -m pip --disable-pip-version-check",
+    )
+    for command in override_commands:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_synthetic_open_interpreter_dockerfile(
+                root,
+                f"{direct_requirements} litellm!=1.82.7,!=1.82.8"
+                f"\nRUN {command} install litellm==1.82.7",
+            )
+            errors = module.validate_open_interpreter_litellm_guard(root)
+            assert any(
+                "expected exactly one pip install transaction" in error for error in errors
+            ), command
+
+    override_run_instructions = (
+        'RUN ["pip", "install", "litellm==1.82.7"]',
+        "RUN sh -c 'pip install litellm==1.82.7'",
+    )
+    for instruction in override_run_instructions:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_synthetic_open_interpreter_dockerfile(
+                root,
+                f"{direct_requirements} litellm!=1.82.7,!=1.82.8\n{instruction}",
+            )
+            errors = module.validate_open_interpreter_litellm_guard(root)
+            assert any(
+                "expected exactly one pip token" in error
+                for error in errors
+            ), instruction
+
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_synthetic_open_interpreter_dockerfile(
+            root,
+            f"{direct_requirements} litellm!=1.82.7,!=1.82.8"
+            " && sh -c 'pip install litellm==1.82.7'",
+        )
+        errors = module.validate_open_interpreter_litellm_guard(root)
+        assert any("expected exactly one pip token" in error for error in errors)
+
+
+def test_open_interpreter_rejects_direct_pin_drift() -> None:
+    module = load_module()
+    requirements = set(module.OPEN_INTERPRETER_REQUIREMENTS)
+    requirements.remove("fastapi==0.111.0")
+    requirements.add("fastapi==0.112.0")
+    requirements.add("litellm!=1.82.7,!=1.82.8")
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_synthetic_open_interpreter_dockerfile(root, " ".join(sorted(requirements)))
+        errors = module.validate_open_interpreter_litellm_guard(root)
+        assert any("fastapi==0.111.0" in error for error in errors)
+
+
 def main() -> int:
     tests = [
         test_repo_dependency_lock_passes,
@@ -199,6 +304,9 @@ def main() -> int:
         test_ephemeral_sha256_length_tags_are_rejected,
         test_sha256_digest_pins_are_allowed,
         test_extension_library_sha_tags_are_rejected,
+        test_open_interpreter_excludes_compromised_litellm_versions,
+        test_open_interpreter_rejects_vulnerable_or_split_constraints,
+        test_open_interpreter_rejects_direct_pin_drift,
     ]
     for test in tests:
         test()
