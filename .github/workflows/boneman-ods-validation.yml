@@ -29,6 +29,9 @@ jobs:
             -r ods/extensions/services/dashboard-api/requirements.txt \
             -r ods/extensions/services/dashboard-api/tests/requirements-test.txt
 
+      - name: Test validation workflow contracts
+        run: python .github/tests/test_validation_workflows.py
+
       - name: Validate deployment files
         run: |
           shellcheck deploy/boneman/install.sh
