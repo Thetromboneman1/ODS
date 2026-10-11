@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc python3-dev
 RUN pip install --no-cache-dir \
     open-interpreter==0.4.3 \
     litellm!=1.82.7,!=1.82.8 \
+    'setuptools<82' \
     fastapi==0.111.0 \
     uvicorn==0.42.0 \
     pydantic==2.12.5

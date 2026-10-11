@@ -294,6 +294,19 @@ def test_open_interpreter_rejects_direct_pin_drift() -> None:
         assert any("fastapi==0.111.0" in error for error in errors)
 
 
+def test_open_interpreter_requires_pkg_resources_compatibility_cap() -> None:
+    module = load_module()
+    requirements = set(module.OPEN_INTERPRETER_REQUIREMENTS)
+    requirements.remove("setuptools<82")
+    requirements.add("setuptools")
+    requirements.add("litellm!=1.82.7,!=1.82.8")
+    with TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_synthetic_open_interpreter_dockerfile(root, " ".join(sorted(requirements)))
+        errors = module.validate_open_interpreter_litellm_guard(root)
+        assert any("setuptools<82" in error for error in errors)
+
+
 def main() -> int:
     tests = [
         test_repo_dependency_lock_passes,
@@ -307,6 +320,7 @@ def main() -> int:
         test_open_interpreter_excludes_compromised_litellm_versions,
         test_open_interpreter_rejects_vulnerable_or_split_constraints,
         test_open_interpreter_rejects_direct_pin_drift,
+        test_open_interpreter_requires_pkg_resources_compatibility_cap,
     ]
     for test in tests:
         test()

@@ -25,6 +25,7 @@ OPEN_INTERPRETER_DOCKERFILE = Path(
 OPEN_INTERPRETER_REQUIREMENTS = frozenset(
     {
         "open-interpreter==0.4.3",
+        "setuptools<82",
         "fastapi==0.111.0",
         "uvicorn==0.42.0",
         "pydantic==2.12.5",
